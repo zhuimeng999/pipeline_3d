@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.9)
 project(pipeline_3d)
 
 set(CMAKE_CXX_STANDARD 11)
