@@ -98,7 +98,9 @@ int FeatureDetector::run(const int argc, const char *argv[]) {
         if(angleRadian > M_PI){
           angleRadian = angleRadian - (M_PI*2);
         }
-        keyfile << kp[j].pt.x << " " << kp[j].pt.y << " " << kp[j].response << " " << angleRadian << std::endl;
+
+        /* key point are in (row, column, scale, angle) format */
+        keyfile << kp[j].pt.y << " " << kp[j].pt.x << " " << kp[j].response << " " << angleRadian << std::endl;
         for(int k = 0; k < 6; k++){
           for(int m = 0; m < 20; m++){
             keyfile << " " << static_cast<unsigned int>(desc.at<unsigned char>(j, 20*k + m));
@@ -117,7 +119,7 @@ int FeatureDetector::run(const int argc, const char *argv[]) {
     }
   }
   TIMER_END();
-  std::cout <<descriptorsList[0].row(0).size;
+
   std::vector<std::pair<int, int>> ompKeys;
   ompKeys.reserve(images.size() * (images.size() - 1) / 2);
   for (int i = 0; i < images.size(); i++) {
@@ -150,7 +152,7 @@ int FeatureDetector::run(const int argc, const char *argv[]) {
   }
   TIMER_END();
 
-  boost::filesystem::ofstream of(workDir/boost::filesystem::path("matches.txt"));
+  boost::filesystem::ofstream of(workDir/boost::filesystem::path("matches.init.txt"));
   for(int i = 0; i < ompKeys.size(); i++){
     const auto & good_matches = allMatches[i];
     if (good_matches.size() >= 16) {
