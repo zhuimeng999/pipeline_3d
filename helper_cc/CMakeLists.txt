@@ -37,5 +37,12 @@ message(STATUS "PYTHON_EXECUTABLE = ${PYTHON_EXECUTABLE}")
 message(STATUS "PYTHON_INCLUDE_DIRS = ${PYTHON_INCLUDE_DIRS}")
 message(STATUS "Boost_LIBRARIES = ${Boost_LIBRARIES}")
 
+find_package(Theia REQUIRED)
+include_directories(${THEIA_INCLUDE_DIRS})
+
 INCLUDE_DIRECTORIES(${Boost_INCLUDE_DIRS} ${PYTHON_INCLUDE_DIRS})
-PYTHON_ADD_MODULE(helper_cc theiasfm_reconstruction_helper.cpp)
+PYTHON_ADD_MODULE(helper_cc python_warpper.cpp)
+target_link_libraries(helper_cc ${Boost_LIBRARIES} ${PYTHON_LIBRARIES})
+add_executable(theia_to_text theiasfm_reconstruction_helper.cpp)
+
+target_link_libraries(theia_to_text ${THEIA_LIBRARIES})

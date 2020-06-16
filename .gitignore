@@ -3,3 +3,4 @@
 /helper_cc/.idea/
 /helper_cc/cmake-build-*/
 /__pycache__/
+*.pyc

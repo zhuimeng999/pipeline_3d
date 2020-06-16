@@ -11,8 +11,14 @@ def maybe_convert_sfm_result():
     pass
 
 
+def mvs_colmap(options):
+
+
+
 if __name__ == '__main__':
     InitLogging()
+    module_logger.info('select gpu %d, has free memory %d MiB', *SetupOneGpu())
+
     parser = argparse.ArgumentParser()
     parser.add_argument('sfm_path', type=str, help='sfm result directory')
     parser.add_argument('sfm_algorithm', default=None, choices=['colmap', 'openmvg', 'theiasfm', 'mve'], help='sfm algorithm type')
