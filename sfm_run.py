@@ -97,10 +97,12 @@ def sfm_colmap(options):
 
 def main():
     parser = argparse.ArgumentParser()
+    module_logger.info('select gpu %d, has free memory %d MiB', *SetupOneGpu())
+
     parser.add_argument('images_path', type=str, help='input images directory')
     parser.add_argument('output_path', type=str, help='output directory')
     parser.add_argument('--reconstruction_estimator', default='INCREMENTAL', choices=['INCREMENTAL', 'GLOBAL'])
-    subparser = parser.add_subparsers(help='algorithm to use, support are {colmap|openmvg|theiasfm|mve}', metavar='algorithm', dest='alg_type', required=True)
+    subparser = parser.add_subparsers(help='algorithm to use, support are {colmap|openmvg|theiasfm|mve}', metavar='algorithm', dest='alg_type')
     parser_colmap = subparser.add_parser('colmap')
     parser_openmvg = subparser.add_parser('openmvg')
     parser_theiasfm = subparser.add_parser('theiasfm')
@@ -109,17 +111,18 @@ def main():
     options = parser.parse_args()
 
     with open(os.path.join(options.output_path, 'sfm_run_options.txt'), 'w') as f:
-        f.write('\n'.join(map(lambda x: x if x.startswith('-') else '\'' + x + '\'', sys.argv[1:])))
+        f.write('\n'.join(map(lambda x: x if ' ' not in x else '\'' + x + '\'', sys.argv[1:])))
 
-    module_logger.info('select gpu %d, has free memory %d MiB', *SetupOneGpu())
     if options.alg_type == 'openmvg':
         sfm_openmvg(options)
     elif options.alg_type == 'theiasfm':
         sfm_theiasfm(options)
     elif options.alg_type == 'mve':
         sfm_mve(options)
-    else:
+    elif options.alg_type == 'colmap':
         sfm_colmap(options)
+    else:
+        module_logger.fatal('you must provide a algorithm to use')
 
 
 if __name__ == '__main__':
