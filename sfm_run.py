@@ -37,8 +37,9 @@ def sfm_theiasfm(options):
 
     content = content.replace('--images=', '--images=' + os.path.join(options.images_path, images)).replace(
         '--output_matches_file=', '--output_matches_file=' + os.path.join(options.output_path, 'matches.txt')).replace(
-        '--output_reconstruction=', '--output_reconstruction=' + os.path.join(options.output_path, 'reconstruction.ply')).replace(
-        '--matching_working_directory=', '--matching_working_directory=' + matching_work_directory)\
+        '--output_reconstruction=', '--output_reconstruction=' + os.path.join(options.output_path, 'reconstruction.bin')).replace(
+        '--matching_working_directory=', '--matching_working_directory=' + matching_work_directory).replace(
+        '--intrinsics_to_optimize=NONE', '--intrinsics_to_optimize=FOCAL_LENGTH|PRINCIPAL_POINTS')
 
     if options.reconstruction_estimator == 'INCREMENTAL':
         content = content.replace(
@@ -94,11 +95,8 @@ def sfm_colmap(options):
     logging.info('run colmap with args:\n %s', colmap_command_line)
     subprocess.run(colmap_command_line, check=True)
 
-
-def main():
+def get_sfm_parser():
     parser = argparse.ArgumentParser()
-    module_logger.info('select gpu %d, has free memory %d MiB', *SetupOneGpu())
-
     parser.add_argument('images_path', type=str, help='input images directory')
     parser.add_argument('output_path', type=str, help='output directory')
     parser.add_argument('--reconstruction_estimator', default='INCREMENTAL', choices=['INCREMENTAL', 'GLOBAL'])
@@ -108,7 +106,13 @@ def main():
     parser_theiasfm = subparser.add_parser('theiasfm')
     parser_theiasfm = subparser.add_parser('mve')
 
-    options = parser.parse_args()
+    return parser
+
+def main():
+
+    module_logger.info('select gpu %d, has free memory %d MiB', *SetupOneGpu())
+
+    options = get_sfm_parser().parse_args()
 
     with open(os.path.join(options.output_path, 'sfm_run_options.txt'), 'w') as f:
         f.write('\n'.join(map(lambda x: x if ' ' not in x else '\'' + x + '\'', sys.argv[1:])))
