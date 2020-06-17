@@ -37,7 +37,7 @@ def sfm_theiasfm(options):
         '--output_matches_file=', '--output_matches_file=' + os.path.join(options.output_path, 'matches.txt')).replace(
         '--output_reconstruction=', '--output_reconstruction=' + os.path.join(options.output_path, 'reconstruction.bin')).replace(
         '--matching_working_directory=', '--matching_working_directory=' + matching_work_directory).replace(
-        '--intrinsics_to_optimize=NONE', '--intrinsics_to_optimize=FOCAL_LENGTH|PRINCIPAL_POINTS')
+        '--intrinsics_to_optimize=NONE', '--intrinsics_to_optimize=FOCAL_LENGTH|PRINCIPAL_POINTS|RADIAL_DISTORTION')
 
     if options.reconstruction_estimator == 'INCREMENTAL':
         content = content.replace(
