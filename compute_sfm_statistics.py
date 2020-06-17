@@ -8,7 +8,7 @@ import subprocess
 import numpy as np
 
 from sfm_run import get_sfm_parser
-from third_party.colmap.read_write_model import read_model
+from third_party.colmap.read_write_model import read_model, read_images_text, read_points3D_text, write_points3D_text
 from utils import InitLogging, LogThanExitIfFailed
 
 
@@ -22,17 +22,62 @@ class RadiaCamera:
 
     def __call__(self, p):
         r2 = p[0] * p[0] + p[1] * p[1]
-        coef = 1 + r2 * self.radia1 + r2 * r2 * self.radia2
+        coef = 1.0 + r2 * self.radia1 + r2 * r2 * self.radia2
         ret = p * coef
         return np.array((ret[0] * self.f + self.cx, ret[1] * self.f + self.cy))
 
 
-def ConvertTheiasfmToColmap(theiasfm_reconstruction_filename, sfm_colmap_path):
-    theiasfm_to_colmap_command_line = ['export_colmap_files',
-                                       '-input_reconstruction_file', theiasfm_reconstruction_filename,
-                                       '-output_folder', sfm_colmap_path,
-                                       '--logtostderr']
-    subprocess.run(theiasfm_to_colmap_command_line, check=True)
+class OpencvCamera:
+    def __init__(self, fx, fy, cx, cy, k1, k2, p1, p2, k3, k4, k5, k6):
+        self.fx = fx
+        self.fy = fy
+        self.cx = cx
+        self.cy = cy
+        self.k1 = k1
+        self.k2 = k2
+        self.p1 = p1
+        self.p2 = p2
+        self.k3 = k3
+        self.k4 = k4
+        self.k5 = k5
+        self.k6 = k6
+
+    def __call__(self, p):
+        u2 = p[0] * p[0]
+        v2 = p[1] * p[1]
+        r2 = u2 + v2
+        r4 = r2 * r2
+        r6 = r4 * r4
+        uv = p[0] * p[1]
+        coef = (1.0 + r2 * self.k1 + r4 * self.k2 + r6 * self.k3) / (1.0 + r2 * self.k4 + r4 * self.k5 + r6 * self.k6)
+        delta1 = 2 * self.p1 * uv + (r2 + 2. * u2) * self.p2
+        delta2 = 2 * self.p2 * uv + (r2 + 2. * v2) * self.p1
+        ret = p * coef
+        p[0] = p[0] + delta1
+        p[1] = p[1] + delta2
+        return np.array((ret[0] * self.fx + self.cx, ret[1] * self.fy + self.cy))
+
+
+def FixedOpenmvgToColmapError(sfm_colmap_dir):
+    images = read_images_text(os.path.join(sfm_colmap_dir, 'images.txt'))
+    points3Ds = read_points3D_text(os.path.join(sfm_colmap_dir, 'points3D.txt'))
+
+    points3Ds_count = {}
+    for track_id, track in points3Ds.items():
+        points3Ds_count[track_id] = 0
+
+    for image_id, image in images.items():
+        for i in range(len(image.point3D_ids)):
+            pid = image.point3D_ids[i]
+            track = points3Ds[pid]
+            cnt = points3Ds_count[pid]
+            track.image_ids[cnt] = image_id
+            track.point2D_idxs[cnt] = i
+            points3Ds_count[pid] = points3Ds_count[pid] + 1
+    for track_id, track in points3Ds.items():
+        assert points3Ds_count[track_id] == len(track.point2D_idxs)
+
+    write_points3D_text(points3Ds, os.path.join(sfm_colmap_dir, 'points3D.txt'))
 
 
 def FindOrConvertSfmResultToColmap(options):
@@ -49,20 +94,32 @@ def FindOrConvertSfmResultToColmap(options):
     elif os.path.isdir(sfm_model_path) is True:
         pass
     elif options.alg_type == 'openmvg':
-        pass
+        os.mkdir(sfm_model_path)
+        assert options.build_id is None
+        openmvg_to_colmap_command_line = ['openMVG_main_openMVG2Colmap',
+                                          '--sfmdata', os.path.join(options.sfm_path, 'sfm_data.bin'),
+                                          '--outdir', sfm_model_path]
+        subprocess.run(openmvg_to_colmap_command_line, check=True)
+        logging.info(
+            'there are errors with openMVG_main_openMVG2Colmap, the 3D->2D map partialily wrong, we can fix this')
+        FixedOpenmvgToColmapError(sfm_colmap_dir=sfm_model_path)
     elif options.alg_type == 'theiasfm':
         os.mkdir(sfm_model_path)
 
         if options.build_id is None:
             reconstructions = list(pathlib.Path(options.sfm_path).glob('reconstruction.bin*'))
-            LogThanExitIfFailed(len(reconstructions) != 1,
+            LogThanExitIfFailed(len(reconstructions) == 1,
                                 'there are many reconstruction resule in %s, you must special a build_id',
                                 reconstructions)
             theiasfm_reconstruction_filename = str(reconstructions[0].absolute().as_posix())
         else:
             theiasfm_reconstruction_filename = os.path.join(options.sfm_path,
                                                             'reconstruction.bin-' + str(options.build_id))
-        ConvertTheiasfmToColmap(theiasfm_reconstruction_filename, sfm_model_path)
+        theiasfm_to_colmap_command_line = ['export_colmap_files',
+                                           '-input_reconstruction_file', theiasfm_reconstruction_filename,
+                                           '-output_folder', sfm_model_path,
+                                           '--logtostderr']
+        subprocess.run(theiasfm_to_colmap_command_line, check=True)
 
     elif options.alg_type == 'mve':
         pass
@@ -74,13 +131,18 @@ def FindOrConvertSfmResultToColmap(options):
 def format_camera(cameras):
     new_camers = {}
     for camera_id, camera in cameras.items():
-        LogThanExitIfFailed(camera.model not in ['RADIAL', 'SIMPLE_RADIAL'], 'unsupport camera type: %s', camera.model)
-        if len(camera.params) == 4:
-            radia2 = 0
+        if camera.model in ['RADIAL', 'SIMPLE_RADIAL']:
+            if len(camera.params) == 4:
+                radia2 = 0
+            else:
+                radia2 = camera.params[4]
+            new_camers[camera_id] = RadiaCamera(camera.params[0], camera.params[1], camera.params[2], camera.params[3],
+                                                radia2)
+        elif camera.model in ['FULL_OPENCV']:
+            new_camers[camera_id] = OpencvCamera(*camera.params)
         else:
-            radia2 = camera.params[4]
-        new_camers[camera_id] = RadiaCamera(camera.params[0], camera.params[1], camera.params[2], camera.params[3],
-                                            radia2)
+            LogThanExitIfFailed(False, 'unsupport camera type: %s', camera.model)
+
     return new_camers
 
 
@@ -98,6 +160,7 @@ def PrintReprojectionErrors(cameras, images, points3D):
             image = images[view_id]
             camera = cameras[image.camera_id]
             assert track_id == image.point3D_ids[feature_id]
+            # feature_id = np.where(image.point3D_ids == track_id)
             feature = image.xys[feature_id]
 
             projection, z = ProjectPoint(camera, image, track.xyz)
@@ -128,8 +191,8 @@ def PrintTrackLengthHistogram(cameras, images, points3D):
         track_lengths.append(len(track.image_ids))
 
     # Exit if there were no tracks found.
-    if (len(track_lengths) == 0):
-        logging.info("No valid tracks were present in the reconstruction.")
+    LogThanExitIfFailed(len(track_lengths) > 0,
+                        "No valid tracks were present in the reconstruction.")
 
     # Compute the mean and median track lengths.
     mean_track_length = sum(track_lengths) / len(track_lengths)
