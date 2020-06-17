@@ -25,19 +25,12 @@ def SetupOneGpu():
 
 def InitLogging(debug=False):
     # create logger
-    logger = logging.getLogger('module_logger')
-    logger.setLevel(logging.DEBUG)
-
-    # create console handler and set level to debug
-    ch = logging.StreamHandler()
     if debug:
-        ch.setLevel(logging.DEBUG)
+        logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.DEBUG)
+    else:
+        logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 
-    # create formatter
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-
-    # add formatter to ch
-    ch.setFormatter(formatter)
-
-    # add ch to logger
-    logger.addHandler(ch)
+def LogThanExitIfFailed(condition:bool, msg:str, *args):
+    if not condition:
+        logging.critical(msg, *args, stack_info=True)
+        exit(1)

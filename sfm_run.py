@@ -5,13 +5,11 @@
 """
 
 import subprocess
-from utils import SetupOneGpu, InitLogging
+from utils import SetupOneGpu, InitLogging, LogThanExitIfFailed
 import os, sys
 import argparse
-import logging
 import pathlib
-
-module_logger = logging.getLogger('module_logger')
+import logging
 
 def sfm_mve(options):
     makescene_command_line = ['makescene', '-i', options.images_path, os.path.join(options.output_path, 'view')]
@@ -85,8 +83,8 @@ def sfm_openmvg(options):
 
 
 def sfm_colmap(options):
-    if options.reconstruction_estimator != 'INCREMENTAL':
-        logging.fatal('colmap only support INCREMENTAL sfm reconstruction')
+    LogThanExitIfFailed(options.reconstruction_estimator != 'INCREMENTAL',
+                        'colmap only support INCREMENTAL sfm reconstruction')
     colmap_command_line = ['colmap', 'automatic_reconstructor',
                            '--workspace_path', options.output_path,
                            '--image_path', options.images_path,
@@ -110,7 +108,7 @@ def get_sfm_parser():
 
 def main():
 
-    module_logger.info('select gpu %d, has free memory %d MiB', *SetupOneGpu())
+    logging.info('select gpu %d, has free memory %d MiB', *SetupOneGpu())
 
     options = get_sfm_parser().parse_args()
 
@@ -126,7 +124,7 @@ def main():
     elif options.alg_type == 'colmap':
         sfm_colmap(options)
     else:
-        module_logger.fatal('you must provide a algorithm to use')
+        LogThanExitIfFailed(False, 'you must provide a algorithm to use')
 
 
 if __name__ == '__main__':
