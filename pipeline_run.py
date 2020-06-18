@@ -36,7 +36,7 @@ if __name__ == '__main__':
     parser.add_argument('--sfm', default='colmap', choices=['colmap', 'openmvg', 'theiasfm', 'mve'], help='sfm algorithm')
     parser.add_argument('--mvs', default='colmap', choices=['colmap', 'openmvs', 'pmvs', 'cmvs', 'mve'], help='mvs algorithm')
     parser.add_argument('--auto_rerun', type=bool, default=False, help='auto run left pipeline if a step is missing')
-    parser.add_argument('--num_gpu', default=1, help='how many gpu to use')
+    parser.add_argument('--num_gpu', type=int, default=1, help='how many gpu to use')
 
     options = parser.parse_args()
 
