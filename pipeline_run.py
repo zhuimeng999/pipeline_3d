@@ -10,10 +10,11 @@ from utils import SetupFreeGpu, InitLogging
 from sfm_run import sfm_colmap, sfm_openmvg, sfm_theiasfm, sfm_mve
 from sfm_normalize import sfm_normalize_colmap
 from mvs_run import mvs_colmap
+from common_options import get_common_options_parser
 
 def run_sfm_alg(options, images_dir, sfm_work_dir):
     if options.sfm == 'colmap':
-        sfm_colmap(images_dir, sfm_work_dir)
+        sfm_colmap(options, images_dir, sfm_work_dir)
     else:
         raise
 
@@ -30,13 +31,13 @@ def run_mvs_alg(options, sfm_normalize_work_dir, mvs_work_dir):
         raise
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(parents=[get_common_options_parser()])
     parser.add_argument('images_dir', type=str, help='images directory to process')
     parser.add_argument('workspace_dir', type=str, help='working directory')
     parser.add_argument('--sfm', default='colmap', choices=['colmap', 'openmvg', 'theiasfm', 'mve'], help='sfm algorithm')
     parser.add_argument('--mvs', default='colmap', choices=['colmap', 'openmvs', 'pmvs', 'cmvs', 'mve'], help='mvs algorithm')
     parser.add_argument('--auto_rerun', type=bool, default=False, help='auto run left pipeline if a step is missing')
-    parser.add_argument('--num_gpu', type=int, default=1, help='how many gpu to use')
+
 
     options = parser.parse_args()
 

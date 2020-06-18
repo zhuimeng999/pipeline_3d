@@ -11,22 +11,26 @@ import argparse
 import pathlib
 import logging
 
-def sfm_colmap(images_dir, work_dir, reconstruction_estimator='INCREMENTAL'):
+
+def sfm_colmap(options, images_dir, work_dir, reconstruction_estimator='INCREMENTAL'):
     LogThanExitIfFailed(reconstruction_estimator == 'INCREMENTAL',
                         'colmap only support INCREMENTAL sfm reconstruction')
     colmap_command_line = ['colmap', 'automatic_reconstructor',
                            '--workspace_path', work_dir,
                            '--image_path', images_dir,
                            '--sparse', str(1),
-                           '--dense', str(0)]
+                           '--dense', str(0),
+                           '--num_threads', options.num_cpu]
     logging.info('run colmap with args:\n %s', colmap_command_line)
     subprocess.run(colmap_command_line, check=True)
+
 
 def sfm_mve(images_dir, work_dir):
     makescene_command_line = ['makescene', '-i', images_dir, os.path.join(work_dir, 'view')]
     subprocess.run(makescene_command_line, check=True)
     sfmrecon_command_line = ['sfmrecon', os.path.join(work_dir, 'view')]
     subprocess.run(sfmrecon_command_line, check=True)
+
 
 def sfm_theiasfm(options):
     tmp = pathlib.Path(options.images_path)
@@ -46,13 +50,14 @@ def sfm_theiasfm(options):
 
     content = content.replace('--images=', '--images=' + os.path.join(options.images_path, images)).replace(
         '--output_matches_file=', '--output_matches_file=' + os.path.join(options.output_path, 'matches.txt')).replace(
-        '--output_reconstruction=', '--output_reconstruction=' + os.path.join(options.output_path, 'reconstruction.bin')).replace(
+        '--output_reconstruction=',
+        '--output_reconstruction=' + os.path.join(options.output_path, 'reconstruction.bin')).replace(
         '--matching_working_directory=', '--matching_working_directory=' + matching_work_directory).replace(
         '--intrinsics_to_optimize=NONE', '--intrinsics_to_optimize=FOCAL_LENGTH|PRINCIPAL_POINTS|RADIAL_DISTORTION')
 
     if options.reconstruction_estimator == 'INCREMENTAL':
         content = content.replace(
-        '--reconstruction_estimator=GLOBAL', '--reconstruction_estimator=INCREMENTAL')
+            '--reconstruction_estimator=GLOBAL', '--reconstruction_estimator=INCREMENTAL')
     with open(theiasfm_flagfile, 'w') as f:
         f.write(content)
 
@@ -78,7 +83,6 @@ def sfm_openmvg(options):
                                     '--outdir', matches_dir]
     subprocess.run(ComputeFeatures_command_line, check=True)
 
-
     ComputeMatches_command_line = ['openMVG_main_ComputeMatches',
                                    '--input_file', os.path.join(options.output_path, 'sfm_data.json'),
                                    '--out_dir', matches_dir]
@@ -97,12 +101,14 @@ def sfm_openmvg(options):
                                        '--outdir', options.output_path]
         subprocess.run(IncrementalSfM_command_line, check=True)
 
+
 def get_sfm_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument('images_path', type=str, help='input images directory')
     parser.add_argument('output_path', type=str, help='output directory')
     parser.add_argument('--reconstruction_estimator', default='INCREMENTAL', choices=['INCREMENTAL', 'GLOBAL'])
-    subparser = parser.add_subparsers(help='algorithm to use, support are {colmap|openmvg|theiasfm|mve}', metavar='algorithm', dest='alg_type')
+    subparser = parser.add_subparsers(help='algorithm to use, support are {colmap|openmvg|theiasfm|mve}',
+                                      metavar='algorithm', dest='alg_type')
     parser_colmap = subparser.add_parser('colmap')
     parser_openmvg = subparser.add_parser('openmvg')
     parser_theiasfm = subparser.add_parser('theiasfm')
@@ -110,11 +116,10 @@ def get_sfm_parser():
 
     return parser
 
+
 def main():
     options = get_sfm_parser().parse_args()
     logging.info('select gpu %s', SetupFreeGpu(options.num_gpu))
-
-
 
     with open(os.path.join(options.output_path, 'sfm_run_options.txt'), 'w') as f:
         f.write('\n'.join(map(lambda x: x if ' ' not in x else '\'' + x + '\'', sys.argv[1:])))
