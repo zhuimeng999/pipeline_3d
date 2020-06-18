@@ -100,10 +100,6 @@ def load_mve_sfm(sfm_mve_dir):
     return read_bundler(os.path.join(sfm_mve_dir, 'view/synth_0.out'), images_xys)
 
 
-def mve_to_colmap(sfm_mve_dir, sfm_colmap_dir):
-    write_model(*load_mve_sfm(sfm_mve_dir), sfm_colmap_dir, '.txt')
-
-
 if __name__ == '__main__':
     InitLogging()
     load_mve_sfm('/home/lucius/data/workspace/Ignatius_mve')

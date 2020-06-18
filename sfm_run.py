@@ -11,10 +11,21 @@ import argparse
 import pathlib
 import logging
 
-def sfm_mve(options):
-    makescene_command_line = ['makescene', '-i', options.images_path, os.path.join(options.output_path, 'view')]
+def sfm_colmap(images_dir, work_dir, reconstruction_estimator='INCREMENTAL'):
+    LogThanExitIfFailed(reconstruction_estimator == 'INCREMENTAL',
+                        'colmap only support INCREMENTAL sfm reconstruction')
+    colmap_command_line = ['colmap', 'automatic_reconstructor',
+                           '--workspace_path', work_dir,
+                           '--image_path', images_dir,
+                           '--sparse', str(1),
+                           '--dense', str(0)]
+    logging.info('run colmap with args:\n %s', colmap_command_line)
+    subprocess.run(colmap_command_line, check=True)
+
+def sfm_mve(images_dir, work_dir):
+    makescene_command_line = ['makescene', '-i', images_dir, os.path.join(work_dir, 'view')]
     subprocess.run(makescene_command_line, check=True)
-    sfmrecon_command_line = ['sfmrecon', os.path.join(options.output_path, 'view')]
+    sfmrecon_command_line = ['sfmrecon', os.path.join(work_dir, 'view')]
     subprocess.run(sfmrecon_command_line, check=True)
 
 def sfm_theiasfm(options):
@@ -85,18 +96,6 @@ def sfm_openmvg(options):
                                        '--matchdir', matches_dir,
                                        '--outdir', options.output_path]
         subprocess.run(IncrementalSfM_command_line, check=True)
-
-
-def sfm_colmap(options):
-    LogThanExitIfFailed(options.reconstruction_estimator != 'INCREMENTAL',
-                        'colmap only support INCREMENTAL sfm reconstruction')
-    colmap_command_line = ['colmap', 'automatic_reconstructor',
-                           '--workspace_path', options.output_path,
-                           '--image_path', options.images_path,
-                           '--sparse', str(1),
-                           '--dense', str(0)]
-    logging.info('run colmap with args:\n %s', colmap_command_line)
-    subprocess.run(colmap_command_line, check=True)
 
 def get_sfm_parser():
     parser = argparse.ArgumentParser()

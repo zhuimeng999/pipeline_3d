@@ -10,7 +10,7 @@ import numpy as np
 from sfm_run import get_sfm_parser
 from third_party.colmap.read_write_model import read_model, read_images_text, read_points3D_text, write_points3D_text
 from utils import InitLogging, LogThanExitIfFailed
-from load_mve_sfm import mve_to_colmap
+from sfm_converter import *
 
 
 class RadiaCamera:
@@ -58,29 +58,6 @@ class OpencvCamera:
         p[1] = p[1] + delta2
         return np.array((ret[0] * self.fx + self.cx, ret[1] * self.fy + self.cy))
 
-
-def FixedOpenmvgToColmapError(sfm_colmap_dir):
-    images = read_images_text(os.path.join(sfm_colmap_dir, 'images.txt'))
-    points3Ds = read_points3D_text(os.path.join(sfm_colmap_dir, 'points3D.txt'))
-
-    points3Ds_count = {}
-    for track_id, track in points3Ds.items():
-        points3Ds_count[track_id] = 0
-
-    for image_id, image in images.items():
-        for i in range(len(image.point3D_ids)):
-            pid = image.point3D_ids[i]
-            track = points3Ds[pid]
-            cnt = points3Ds_count[pid]
-            track.image_ids[cnt] = image_id
-            track.point2D_idxs[cnt] = i
-            points3Ds_count[pid] = points3Ds_count[pid] + 1
-    for track_id, track in points3Ds.items():
-        assert points3Ds_count[track_id] == len(track.point2D_idxs)
-
-    write_points3D_text(points3Ds, os.path.join(sfm_colmap_dir, 'points3D.txt'))
-
-
 def FindOrConvertSfmResultToColmap(options):
     sfm_model_path = os.path.join(options.sfm_path, 'sfm_colmap')
     if options.alg_type == 'colmap':
@@ -95,37 +72,11 @@ def FindOrConvertSfmResultToColmap(options):
     elif os.path.isdir(sfm_model_path) is True:
         pass
     elif options.alg_type == 'openmvg':
-        os.mkdir(sfm_model_path)
-        assert options.build_id is None
-        openmvg_to_colmap_command_line = ['openMVG_main_openMVG2Colmap',
-                                          '--sfmdata', os.path.join(options.sfm_path, 'sfm_data.bin'),
-                                          '--outdir', sfm_model_path]
-        subprocess.run(openmvg_to_colmap_command_line, check=True)
-        logging.info(
-            'there are errors with openMVG_main_openMVG2Colmap, the 3D->2D map partialily wrong, we can fix this')
-        FixedOpenmvgToColmapError(sfm_colmap_dir=sfm_model_path)
+        openmvg2colmap(options.sfm_path, sfm_model_path)
     elif options.alg_type == 'theiasfm':
-        os.mkdir(sfm_model_path)
-
-        if options.build_id is None:
-            reconstructions = list(pathlib.Path(options.sfm_path).glob('reconstruction.bin*'))
-            LogThanExitIfFailed(len(reconstructions) == 1,
-                                'there are many reconstruction resule in %s, you must special a build_id',
-                                reconstructions)
-            theiasfm_reconstruction_filename = str(reconstructions[0].absolute().as_posix())
-        else:
-            theiasfm_reconstruction_filename = os.path.join(options.sfm_path,
-                                                            'reconstruction.bin-' + str(options.build_id))
-        theiasfm_to_colmap_command_line = ['export_colmap_files',
-                                           '-input_reconstruction_file', theiasfm_reconstruction_filename,
-                                           '-output_folder', sfm_model_path,
-                                           '--logtostderr']
-        subprocess.run(theiasfm_to_colmap_command_line, check=True)
-
+        theiasfm2colmap(options.sfm_path, sfm_model_path)
     elif options.alg_type == 'mve':
-        os.mkdir(sfm_model_path)
-        assert options.build_id is None
-        mve_to_colmap(options.sfm_path, sfm_model_path)
+        mve2colmap(options.sfm_path, sfm_model_path)
     else:
         LogThanExitIfFailed(False, 'unknown algorithm type: %s', options.alg_type)
     return sfm_model_path

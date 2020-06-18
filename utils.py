@@ -4,6 +4,7 @@ import subprocess
 from csv import DictReader
 import os
 import logging
+import pathlib
 
 
 def SetupOneGpu():
@@ -34,3 +35,17 @@ def LogThanExitIfFailed(condition:bool, msg:str, *args):
     if not condition:
         logging.critical(msg, *args, stack_info=True)
         exit(1)
+
+def GetFileFromBuildId(file_dir:str, pattern:str, build_id:int = None):
+    file_candiates = list(pathlib.Path(file_dir).glob(pattern))
+    if build_id is None:
+        LogThanExitIfFailed(len(file_candiates) == 1,
+                            'there are many matches in %s with %s, you must special a build_id: %s',
+                            file_dir, pattern, file_candiates)
+        return str(file_candiates[0].absolute().as_posix())
+    else:
+        file_selected = list(filter(lambda x: str(x.as_posix())[-1] == str(build_id), file_candiates))
+        LogThanExitIfFailed(len(file_selected) == 1,
+                            'there are many matches in %s with %s, build_id %d: %s',
+                            file_dir, pattern, build_id, file_selected)
+        return str(file_selected[0].absolute().as_posix())
