@@ -10,6 +10,7 @@ import numpy as np
 from sfm_run import get_sfm_parser
 from third_party.colmap.read_write_model import read_model, read_images_text, read_points3D_text, write_points3D_text
 from utils import InitLogging, LogThanExitIfFailed
+from load_mve_sfm import mve_to_colmap
 
 
 class RadiaCamera:
@@ -122,7 +123,9 @@ def FindOrConvertSfmResultToColmap(options):
         subprocess.run(theiasfm_to_colmap_command_line, check=True)
 
     elif options.alg_type == 'mve':
-        pass
+        os.mkdir(sfm_model_path)
+        assert options.build_id is None
+        mve_to_colmap(options.sfm_path, sfm_model_path)
     else:
         LogThanExitIfFailed(False, 'unknown algorithm type: %s', options.alg_type)
     return sfm_model_path

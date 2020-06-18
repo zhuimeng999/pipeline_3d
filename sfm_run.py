@@ -58,26 +58,31 @@ def sfm_openmvg(options):
                                   '--outputDirectory', options.output_path]
     subprocess.run(image_listing_command_line, check=True)
 
+    matches_dir = os.path.join(options.output_path, 'matches')
+    if os.path.isdir(matches_dir) is False:
+        os.mkdir(matches_dir)
+
     ComputeFeatures_command_line = ['openMVG_main_ComputeFeatures',
                                     '--input_file', os.path.join(options.output_path, 'sfm_data.json'),
-                                    '--outdir', options.output_path]
+                                    '--outdir', matches_dir]
     subprocess.run(ComputeFeatures_command_line, check=True)
+
 
     ComputeMatches_command_line = ['openMVG_main_ComputeMatches',
                                    '--input_file', os.path.join(options.output_path, 'sfm_data.json'),
-                                   '--out_dir', options.output_path]
+                                   '--out_dir', matches_dir]
     subprocess.run(ComputeMatches_command_line, check=True)
 
     if options.reconstruction_estimator == 'INCREMENTAL':
         IncrementalSfM_command_line = ['openMVG_main_IncrementalSfM',
                                        '--input_file', os.path.join(options.output_path, 'sfm_data.json'),
-                                       '--matchdir', options.output_path,
+                                       '--matchdir', matches_dir,
                                        '--outdir', options.output_path]
         subprocess.run(IncrementalSfM_command_line, check=True)
     else:
         IncrementalSfM_command_line = ['openMVG_main_GlobalSfM',
                                        '--input_file', os.path.join(options.output_path, 'sfm_data.json'),
-                                       '--matchdir', options.output_path,
+                                       '--matchdir', matches_dir,
                                        '--outdir', options.output_path]
         subprocess.run(IncrementalSfM_command_line, check=True)
 
