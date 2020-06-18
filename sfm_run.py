@@ -20,7 +20,7 @@ def sfm_colmap(options, images_dir, work_dir, reconstruction_estimator='INCREMEN
                            '--image_path', images_dir,
                            '--sparse', str(1),
                            '--dense', str(0),
-                           '--num_threads', options.num_cpu]
+                           '--num_threads', str(options.num_cpu)]
     logging.info('run colmap with args:\n %s', colmap_command_line)
     subprocess.run(colmap_command_line, check=True)
 
