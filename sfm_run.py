@@ -5,7 +5,7 @@
 """
 
 import subprocess
-from utils import SetupOneGpu, InitLogging, LogThanExitIfFailed
+from utils import SetupFreeGpu, InitLogging, LogThanExitIfFailed
 import os, sys
 import argparse
 import pathlib
@@ -111,10 +111,10 @@ def get_sfm_parser():
     return parser
 
 def main():
-
-    logging.info('select gpu %d, has free memory %d MiB', *SetupOneGpu())
-
     options = get_sfm_parser().parse_args()
+    logging.info('select gpu %s', SetupFreeGpu(options.num_gpu))
+
+
 
     with open(os.path.join(options.output_path, 'sfm_run_options.txt'), 'w') as f:
         f.write('\n'.join(map(lambda x: x if ' ' not in x else '\'' + x + '\'', sys.argv[1:])))

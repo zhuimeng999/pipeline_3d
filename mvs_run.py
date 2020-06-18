@@ -2,7 +2,7 @@
 
 import os, sys
 import argparse, logging
-from utils import SetupOneGpu, InitLogging
+from utils import SetupFreeGpu, InitLogging
 import subprocess
 
 
@@ -17,9 +17,6 @@ def mvs_colmap(sfm_normalize_work_dir, mvs_work_dir):
 
 
 if __name__ == '__main__':
-    InitLogging()
-    logging.info('select gpu %d, has free memory %d MiB', *SetupOneGpu())
-
     parser = argparse.ArgumentParser()
     parser.add_argument('sfm_path', type=str, help='sfm result directory')
     parser.add_argument('--sfm_algorithm', default=None, choices=['colmap', 'openmvg', 'theiasfm', 'mve'], help='sfm algorithm type')
@@ -31,6 +28,11 @@ if __name__ == '__main__':
     parser_mve = subparser.add_parser('mve')
 
     options = parser.parse_args()
+
+    InitLogging()
+    logging.info('select gpu %s', SetupFreeGpu(options.num_gpu))
+
+
     maybe_convert_sfm_result()
 
     if options.alg_type == 'openmvs':

@@ -7,7 +7,8 @@ import logging
 import pathlib
 
 
-def SetupOneGpu():
+def SetupFreeGpu(n = 1):
+    LogThanExitIfFailed(n > 0, 'gpu number must greater than 0, got %d', n)
     gpu_status_str = subprocess.run(('nvidia-smi', '--query-gpu=index,memory.free', '--format=csv'),
                                     stdout=subprocess.PIPE, check=True)
 
@@ -21,8 +22,11 @@ def SetupOneGpu():
 
     gpu_status.sort(key=lambda x: x[memory_field_name], reverse=True)
 
-    os.environ['CUDA_VISIBLE_DEVICES'] = str(gpu_status[0][index_field_name])
-    return gpu_status[0][index_field_name], gpu_status[0][memory_field_name]
+    gpus = []
+    for i in range(n):
+        gpus.append(str(gpu_status[i][index_field_name]))
+    os.environ['CUDA_VISIBLE_DEVICES'] = ','.join(gpus)
+    return gpus
 
 def InitLogging(debug=False):
     # create logger
