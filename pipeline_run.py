@@ -51,6 +51,7 @@ if __name__ == '__main__':
     sfm_name = 'sfm_' + options.sfm
     sfm_work_dir = os.path.join(options.workspace_dir, sfm_name)
     if os.path.exists(sfm_work_dir) is False:
+        os.mkdir(sfm_work_dir)
         run_sfm_alg(options, options.images_dir, sfm_work_dir)
         force_run = force_run + 1
 
@@ -58,6 +59,7 @@ if __name__ == '__main__':
     sfm_normalize_work_dir = os.path.join(options.workspace_dir, sfm_normalize_mame)
     if (os.path.exists(sfm_normalize_work_dir)) is False or (force_run > 0):
         shutil.rmtree(sfm_normalize_work_dir, ignore_errors=True)
+        os.mkdir(sfm_normalize_work_dir)
         run_sfm_normalize_alg(options, sfm_work_dir, sfm_normalize_work_dir)
         force_run = force_run + 1
 
@@ -72,5 +74,6 @@ if __name__ == '__main__':
     mvs_work_dir = os.path.join(options.workspace_dir, mvs_name)
     if (os.path.exists(mvs_work_dir) is False) or (force_run > 0):
         shutil.rmtree(mvs_work_dir, ignore_errors=True)
+        os.mkdir(mvs_work_dir)
         run_mvs_alg(options, sfm_normalize_work_dir, mvs_work_dir)
         force_run = force_run + 1
