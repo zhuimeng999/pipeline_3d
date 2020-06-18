@@ -6,7 +6,7 @@ import logging
 import argparse
 import shutil
 
-from utils import InitLogging
+from utils import SetupOneGpu, InitLogging
 from sfm_run import sfm_colmap, sfm_openmvg, sfm_theiasfm, sfm_mve
 from sfm_normalize import sfm_normalize_colmap
 from mvs_run import mvs_colmap
@@ -31,6 +31,8 @@ def run_mvs_alg(options, sfm_normalize_work_dir, mvs_work_dir):
 
 if __name__ == '__main__':
     InitLogging()
+    logging.info('select gpu %d, has free memory %d MiB', *SetupOneGpu())
+
     parser = argparse.ArgumentParser()
     parser.add_argument('images_dir', type=str, help='images directory to process')
     parser.add_argument('workspace_dir', type=str, help='working directory')
