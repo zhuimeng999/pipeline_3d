@@ -12,8 +12,8 @@ import pathlib
 import logging
 
 
-def sfm_colmap(options, images_dir, work_dir, reconstruction_estimator='INCREMENTAL'):
-    LogThanExitIfFailed(reconstruction_estimator == 'INCREMENTAL',
+def sfm_colmap(options, images_dir, work_dir):
+    LogThanExitIfFailed(options.sfm_global is False,
                         'colmap only support INCREMENTAL sfm reconstruction')
     colmap_command_line = ['colmap', 'automatic_reconstructor',
                            '--workspace_path', work_dir,
@@ -25,15 +25,45 @@ def sfm_colmap(options, images_dir, work_dir, reconstruction_estimator='INCREMEN
     subprocess.run(colmap_command_line, check=True)
 
 
-def sfm_mve(images_dir, work_dir):
-    makescene_command_line = ['makescene', '-i', images_dir, os.path.join(work_dir, 'view')]
-    subprocess.run(makescene_command_line, check=True)
-    sfmrecon_command_line = ['sfmrecon', os.path.join(work_dir, 'view')]
-    subprocess.run(sfmrecon_command_line, check=True)
+def sfm_openmvg(options, images_dir, work_dir):
+    sensor_db = 'data/sensor_width_camera_database.txt'
+
+    image_listing_command_line = ['openMVG_main_SfMInit_ImageListing',
+                                  '--imageDirectory', images_dir,
+                                  '--sensorWidthDatabase', sensor_db,
+                                  '--outputDirectory', work_dir]
+    subprocess.run(image_listing_command_line, check=True)
+
+    matches_dir = os.path.join(work_dir, 'matches')
+    if os.path.isdir(matches_dir) is False:
+        os.mkdir(matches_dir)
+
+    ComputeFeatures_command_line = ['openMVG_main_ComputeFeatures',
+                                    '--input_file', os.path.join(work_dir, 'sfm_data.json'),
+                                    '--outdir', matches_dir]
+    subprocess.run(ComputeFeatures_command_line, check=True)
+
+    ComputeMatches_command_line = ['openMVG_main_ComputeMatches',
+                                   '--input_file', os.path.join(work_dir, 'sfm_data.json'),
+                                   '--out_dir', matches_dir]
+    subprocess.run(ComputeMatches_command_line, check=True)
+
+    if options.sfm_global is False:
+        IncrementalSfM_command_line = ['openMVG_main_IncrementalSfM',
+                                       '--input_file', os.path.join(work_dir, 'sfm_data.json'),
+                                       '--matchdir', matches_dir,
+                                       '--outdir', work_dir]
+        subprocess.run(IncrementalSfM_command_line, check=True)
+    else:
+        IncrementalSfM_command_line = ['openMVG_main_GlobalSfM',
+                                       '--input_file', os.path.join(work_dir, 'sfm_data.json'),
+                                       '--matchdir', matches_dir,
+                                       '--outdir', work_dir]
+        subprocess.run(IncrementalSfM_command_line, check=True)
 
 
-def sfm_theiasfm(options):
-    tmp = pathlib.Path(options.images_path)
+def sfm_theiasfm(options, images_dir, work_dir):
+    tmp = pathlib.Path(images_dir)
     images = None
     for f in tmp.iterdir():
         if f.suffix in ['.JPG', '.jpg', '.PNG', '.png'] and f.is_file():
@@ -43,19 +73,17 @@ def sfm_theiasfm(options):
 
     with open('data/build_reconstruction_flags.txt', 'r') as f:
         content = f.read()
-    theiasfm_flagfile = os.path.join(options.output_path, 'theiasfm_flagfile.txt')
-    matching_work_directory = os.path.join(options.output_path, 'matching')
+    theiasfm_flagfile = os.path.join(work_dir, 'theiasfm_flagfile.txt')
+    matching_work_directory = os.path.join(work_dir, 'matching')
     if os.path.isdir(matching_work_directory) is False:
         os.mkdir(matching_work_directory)
 
-    content = content.replace('--images=', '--images=' + os.path.join(options.images_path, images)).replace(
-        '--output_matches_file=', '--output_matches_file=' + os.path.join(options.output_path, 'matches.txt')).replace(
-        '--output_reconstruction=',
-        '--output_reconstruction=' + os.path.join(options.output_path, 'reconstruction.bin')).replace(
+    content = content.replace('--images=', '--images=' + os.path.join(images_dir, images)).replace(
+        '--output_reconstruction=', '--output_reconstruction=' + os.path.join(work_dir, 'reconstruction.bin')).replace(
         '--matching_working_directory=', '--matching_working_directory=' + matching_work_directory).replace(
         '--intrinsics_to_optimize=NONE', '--intrinsics_to_optimize=FOCAL_LENGTH|PRINCIPAL_POINTS|RADIAL_DISTORTION')
 
-    if options.reconstruction_estimator == 'INCREMENTAL':
+    if options.sfm_global is False:
         content = content.replace(
             '--reconstruction_estimator=GLOBAL', '--reconstruction_estimator=INCREMENTAL')
     with open(theiasfm_flagfile, 'w') as f:
@@ -65,42 +93,17 @@ def sfm_theiasfm(options):
     subprocess.run(theiasfm_command_line, check=True)
 
 
-def sfm_openmvg(options):
-    sensor_db = 'data/sensor_width_camera_database.txt'
+def sfm_mve(options, images_dir, work_dir):
+    makescene_command_line = ['makescene', '-i', images_dir, os.path.join(work_dir, 'view')]
+    subprocess.run(makescene_command_line, check=True)
+    sfmrecon_command_line = ['sfmrecon', os.path.join(work_dir, 'view')]
+    subprocess.run(sfmrecon_command_line, check=True)
 
-    image_listing_command_line = ['openMVG_main_SfMInit_ImageListing',
-                                  '--imageDirectory', options.images_path,
-                                  '--sensorWidthDatabase', sensor_db,
-                                  '--outputDirectory', options.output_path]
-    subprocess.run(image_listing_command_line, check=True)
 
-    matches_dir = os.path.join(options.output_path, 'matches')
-    if os.path.isdir(matches_dir) is False:
-        os.mkdir(matches_dir)
-
-    ComputeFeatures_command_line = ['openMVG_main_ComputeFeatures',
-                                    '--input_file', os.path.join(options.output_path, 'sfm_data.json'),
-                                    '--outdir', matches_dir]
-    subprocess.run(ComputeFeatures_command_line, check=True)
-
-    ComputeMatches_command_line = ['openMVG_main_ComputeMatches',
-                                   '--input_file', os.path.join(options.output_path, 'sfm_data.json'),
-                                   '--out_dir', matches_dir]
-    subprocess.run(ComputeMatches_command_line, check=True)
-
-    if options.reconstruction_estimator == 'INCREMENTAL':
-        IncrementalSfM_command_line = ['openMVG_main_IncrementalSfM',
-                                       '--input_file', os.path.join(options.output_path, 'sfm_data.json'),
-                                       '--matchdir', matches_dir,
-                                       '--outdir', options.output_path]
-        subprocess.run(IncrementalSfM_command_line, check=True)
-    else:
-        IncrementalSfM_command_line = ['openMVG_main_GlobalSfM',
-                                       '--input_file', os.path.join(options.output_path, 'sfm_data.json'),
-                                       '--matchdir', matches_dir,
-                                       '--outdir', options.output_path]
-        subprocess.run(IncrementalSfM_command_line, check=True)
-
+def sfm_run_helper(alg, options, images_dir, sfm_work_dir):
+    this_module = sys.modules[__name__]
+    sfm_run_fun = getattr(this_module, 'sfm_' + alg)
+    sfm_run_fun(options, images_dir, sfm_work_dir)
 
 def get_sfm_parser():
     parser = argparse.ArgumentParser()

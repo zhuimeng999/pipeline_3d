@@ -10,11 +10,31 @@ def maybe_convert_sfm_result():
     pass
 
 
-def mvs_colmap(sfm_normalize_work_dir, mvs_work_dir):
+def mvs_colmap(options, mvs_work_dir):
     colmap_patch_match_command_line = ['colmap', 'patch_match_stereo',
-                                       '--workspace_path', sfm_normalize_work_dir]
+                                       '--workspace_path', mvs_work_dir]
     subprocess.run(colmap_patch_match_command_line, check=True)
 
+def mvs_openmvs(options, mvs_work_dir):
+    openmvs_command_line = ['DensifyPointCloud',
+                            '--working-folder', mvs_work_dir,
+                                       os.path.join(mvs_work_dir, 'scene.mvs')]
+    subprocess.run(openmvs_command_line, check=True)
+
+def mvs_pmvs(options, mvs_work_dir):
+    pmvs_command_line = ['pmvs2', os.path.join(mvs_work_dir, 'pmvs/'),
+                                       'option-all']
+    subprocess.run(pmvs_command_line, check=True)
+
+
+def mvs_mve(options, mvs_work_dir):
+    pmvs_command_line = ['dmrecon', '-s2', os.path.join(mvs_work_dir, 'view')]
+    subprocess.run(pmvs_command_line, check=True)
+
+def mvs_run_helper(alg, options, mvs_work_dir):
+    this_module = sys.modules[__name__]
+    mvs_run_fun = getattr(this_module, 'mvs_' + alg)
+    mvs_run_fun(options, mvs_work_dir)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
