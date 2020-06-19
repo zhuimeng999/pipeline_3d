@@ -22,5 +22,5 @@ def export_colmap_to_mvsnet(output_dir):
     subprocess.run(colmap2mvsnet_command_line, check=True)
 
 def run_mvsnet_predict(output_dir):
-
+    pass
 
