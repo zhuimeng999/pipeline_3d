@@ -11,6 +11,7 @@ from utils import InitLogging, LogThanExitIfFailed, GetFileFromBuildId
 from third_party.colmap.read_write_model import write_model, read_images_text, read_points3D_text, write_points3D_text
 from load_mve_sfm import load_mve_sfm, save_mve_sfm
 from common_options import get_common_options_parser
+from algorithm_wrapper.mvsnet_wrapper import export_colmap_to_mvsnet
 
 
 def create_colmap_sparse_directory(base_dir):
@@ -169,12 +170,14 @@ def theiasfm2pmvs(in_theiasfm_dir, in_images_dir, out_pmvs_dir, build_id: int = 
             break
     assert isinstance(images, str)
     select_file = GetFileFromBuildId(in_theiasfm_dir, "reconstruction.bin*", build_id)
+    gen_pmvs_dir = os.path.join(out_pmvs_dir, 'pmvs')
     theiasfm2pmvs_command_line = ['export_reconstruction_to_pmvs',
                                   '-images', os.path.join(in_images_dir, images),
-                                  '-pmvs_working_directory', out_pmvs_dir,
+                                  '-pmvs_working_directory', gen_pmvs_dir,
                                   '-reconstruction', select_file,
                                   '--logtostderr']
     subprocess.run(theiasfm2pmvs_command_line, check=True)
+    os.rename(os.path.join(gen_pmvs_dir, 'pmvs_options.txt'), os.path.join(gen_pmvs_dir, 'option-all'))
 
 
 def mve2pmvs(in_mve_dir, in_images_dir, out_pmvs_dir, build_id: int = None):
@@ -205,8 +208,13 @@ def mve2mve(in_mve_dir, in_images_dir, out_mve_dir, build_id: int = None):
 
 def sfm_convert_helper(src_alg, target_alg, in_alg_dir, in_images_dir, out_alg_dir, build_id: int = None):
     this_module = sys.modules[__name__]
-    convert_fun = getattr(this_module, src_alg + '2' + target_alg)
-    convert_fun(in_alg_dir, in_images_dir, out_alg_dir, build_id)
+    if target_alg in ['mvsnet', 'rmvsnet', 'pointmvsnet']:
+        convert_fun = getattr(this_module, src_alg + '2' + 'colmap')
+        convert_fun(in_alg_dir, in_images_dir, out_alg_dir, build_id)
+        export_colmap_to_mvsnet(out_alg_dir)
+    else:
+        convert_fun = getattr(this_module, src_alg + '2' + target_alg)
+        convert_fun(in_alg_dir, in_images_dir, out_alg_dir, build_id)
 
 
 if __name__ == '__main__':

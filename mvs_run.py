@@ -31,6 +31,10 @@ def mvs_mve(options, mvs_work_dir):
     pmvs_command_line = ['dmrecon', '-s2', os.path.join(mvs_work_dir, 'view')]
     subprocess.run(pmvs_command_line, check=True)
 
+def mvs_mvsnet(options, mvs_work_dir):
+    assert options.mvsnet_path is not None
+
+
 def mvs_run_helper(alg, options, mvs_work_dir):
     this_module = sys.modules[__name__]
     mvs_run_fun = getattr(this_module, 'mvs_' + alg)

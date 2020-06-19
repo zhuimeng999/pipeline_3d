@@ -6,7 +6,7 @@ import logging
 import argparse
 import shutil
 
-from utils import SetupFreeGpu, InitLogging
+from utils import SetupFreeGpu, InitLogging, mvs_network_check
 from sfm_run import sfm_run_helper
 from sfm_converter import sfm_convert_helper
 from mvs_run import mvs_run_helper
@@ -19,7 +19,10 @@ if __name__ == '__main__':
     parser.add_argument('workspace_dir', type=str, help='working directory')
     parser.add_argument('--sfm', default='colmap', choices=['colmap', 'openmvg', 'theiasfm', 'mve'],
                         help='sfm algorithm')
-    parser.add_argument('--mvs', default='colmap', choices=['colmap', 'openmvs', 'pmvs', 'cmvs', 'mve'],
+
+    mvs_algorithm_list = ['colmap', 'openmvs', 'pmvs', 'cmvs', 'mve',
+                          'mvsnet', 'rmvsnet', 'pointmvsnet']
+    parser.add_argument('--mvs', type=mvs_network_check, default='colmap', choices=mvs_algorithm_list,
                         help='mvs algorithm')
     parser.add_argument('--auto_rerun', type=bool, default=False, help='auto run left pipeline if a step is missing')
 

@@ -3,8 +3,10 @@
 import subprocess
 from csv import DictReader
 import os
+import argparse
 import logging
 import pathlib
+from algorithm_wrapper.mvsnet_wrapper import get_mvsnet_path
 
 
 def SetupFreeGpu(n = 1):
@@ -53,3 +55,14 @@ def GetFileFromBuildId(file_dir:str, pattern:str, build_id:int = None):
                             'there are many matches in %s with %s, build_id %d: %s',
                             file_dir, pattern, build_id, file_selected)
         return str(file_selected[0].absolute().as_posix())
+
+def mvs_network_check(mvs_alg:str):
+    if mvs_alg in ['mvsnet', 'rmvsnet']:
+        mvsnet_path = get_mvsnet_path()
+        if mvsnet_path == '':
+            raise argparse.ArgumentTypeError('can not find mvsnet directory, so this mvs alorithm is not support')
+        logging.info('find mvsnet path: %s', mvsnet_path)
+    elif mvs_alg == 'pointmvsnet':
+        raise  argparse.ArgumentTypeError('currently pointmvsnet is not support')
+
+    return mvs_alg
