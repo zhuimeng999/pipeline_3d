@@ -177,7 +177,10 @@ def theiasfm2pmvs(in_theiasfm_dir, in_images_dir, out_pmvs_dir, build_id: int = 
                                   '-reconstruction', select_file,
                                   '--logtostderr']
     subprocess.run(theiasfm2pmvs_command_line, check=True)
-    os.rename(os.path.join(gen_pmvs_dir, 'pmvs_options.txt'), os.path.join(gen_pmvs_dir, 'option-all'))
+    with open(os.path.join(gen_pmvs_dir, 'pmvs_options.txt'), 'r') as f_in:
+        with open(os.path.join(gen_pmvs_dir, 'option-all'), 'w') as f_out:
+            f_out.write(f_in.read().replace('CPU 1', 'CPU ' + str(os.cpu_count())))
+    os.remove(os.path.join(gen_pmvs_dir, 'pmvs_options.txt'))
 
 
 def mve2pmvs(in_mve_dir, in_images_dir, out_pmvs_dir, build_id: int = None):
