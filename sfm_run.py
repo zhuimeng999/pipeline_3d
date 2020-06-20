@@ -81,7 +81,8 @@ def sfm_theiasfm(options, images_dir, work_dir):
     content = content.replace('--images=', '--images=' + os.path.join(images_dir, images)).replace(
         '--output_reconstruction=', '--output_reconstruction=' + os.path.join(work_dir, 'reconstruction.bin')).replace(
         '--matching_working_directory=', '--matching_working_directory=' + matching_work_directory).replace(
-        '--intrinsics_to_optimize=NONE', '--intrinsics_to_optimize=FOCAL_LENGTH|PRINCIPAL_POINTS|RADIAL_DISTORTION')
+        '--intrinsics_to_optimize=NONE', '--intrinsics_to_optimize=FOCAL_LENGTH|PRINCIPAL_POINTS|RADIAL_DISTORTION').replace(
+        '--num_threads=16','--num_threads=' + str(options.num_cpu))
 
     if options.sfm_global is False:
         content = content.replace(
