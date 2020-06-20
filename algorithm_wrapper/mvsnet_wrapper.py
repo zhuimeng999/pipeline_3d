@@ -25,4 +25,8 @@ def export_colmap_to_mvsnet(output_dir):
 
 
 def run_mvsnet_predict(output_dir):
-    pass
+    mvsnet_path = get_mvsnet_path()
+    mvsnet_test = os.path.join(mvsnet_path, 'mvsnet/test.py')
+    base_command = 'source ~/anaconda3/bin/activate mvsnet;'
+    base_command = base_command + 'poython ' + mvsnet_test
+    subprocess.run('source ~/anaconda3/bin/activate mvsnet; python ' + mvsnet_test, shell=True)

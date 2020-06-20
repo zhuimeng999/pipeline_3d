@@ -4,6 +4,7 @@ import os, sys
 import argparse, logging
 from utils import SetupFreeGpu, InitLogging
 import subprocess
+from algorithm_wrapper.mvsnet_wrapper import run_mvsnet_predict
 
 
 def maybe_convert_sfm_result():
@@ -32,7 +33,7 @@ def mvs_mve(options, mvs_work_dir):
     subprocess.run(pmvs_command_line, check=True)
 
 def mvs_mvsnet(options, mvs_work_dir):
-    assert options.mvsnet_path is not None
+    run_mvsnet_predict(mvs_work_dir)
 
 
 def mvs_run_helper(alg, options, mvs_work_dir):
