@@ -33,7 +33,7 @@ def mvs_mve(options, mvs_work_dir):
     subprocess.run(pmvs_command_line, check=True)
 
 def mvs_mvsnet(options, mvs_work_dir):
-    run_mvsnet_predict(mvs_work_dir)
+    run_mvsnet_predict(options, mvs_work_dir)
 
 
 def mvs_run_helper(alg, options, mvs_work_dir):

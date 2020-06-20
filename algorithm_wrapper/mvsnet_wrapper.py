@@ -24,9 +24,17 @@ def export_colmap_to_mvsnet(output_dir):
     subprocess.run(colmap2mvsnet_command_line, check=True)
 
 
-def run_mvsnet_predict(output_dir):
+def run_mvsnet_predict(options, output_dir):
     mvsnet_path = get_mvsnet_path()
-    mvsnet_test = os.path.join(mvsnet_path, 'mvsnet/test.py')
     base_command = 'source ~/anaconda3/bin/activate mvsnet;'
-    base_command = base_command + 'poython ' + mvsnet_test
-    subprocess.run('source ~/anaconda3/bin/activate mvsnet; python ' + mvsnet_test, shell=True)
+    mvsnet_command_line = ['python', os.path.join(mvsnet_path, 'mvsnet/test.py'),
+                           '--dense_folder', output_dir,
+                           '--regularization', '3DCNNs',
+                           '--max_w', '1152',
+                           '--max_h', '864',
+                           '--max_d', '192',
+                           '--interval_scale', '1.06',
+                           '--pretrained_model_ckpt_path', os.path.join(mvsnet_path, 'pretrain/tf_model_eth3d/3DCNNs/model.ckpt'),
+                           '--ckpt_step', '150000']
+    base_command = base_command + '"'+ '" "'.join(mvsnet_command_line)+'"'
+    subprocess.run(['bash', '-c', base_command], start_new_session=True)
