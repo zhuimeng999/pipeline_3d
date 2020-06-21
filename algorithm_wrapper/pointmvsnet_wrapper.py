@@ -41,6 +41,12 @@ def run_pointmvsnet_predict(options, mvs_work_dir):
         with open(config_filepath, 'w') as f_out:
             params = yaml.load(f_in)
             params['DATA']['TEST']['ROOT_DIR'] = mvs_work_dir
+            if options.mvs_max_w is not None:
+                params['DATA']['TEST']['IMG_WIDTH'] = options.mvs_max_w
+            if options.mvs_max_h is not None:
+                params['DATA']['TEST']['IMG_HEIGHT'] = options.mvs_max_h
+            if options.mvs_max_d is not None:
+                params['DATA']['TEST']['NUM_VIRTUAL_PLANE'] = options.mvs_max_d
             yaml.dump(params, f_out)
     pointmvsnet_path = get_pointmvsnet_path()
     base_command = 'source ~/anaconda3/bin/activate PointMVSNet;'

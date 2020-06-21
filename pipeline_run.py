@@ -49,7 +49,7 @@ if __name__ == '__main__':
         shutil.rmtree(mvs_work_dir, ignore_errors=True)
         os.mkdir(mvs_work_dir)
         logging.info('convert sfm(%s) result to mvs(%s)', options.sfm, options.mvs)
-        sfm_convert_helper(options.sfm, options.mvs, sfm_work_dir, options.images_dir, mvs_work_dir)
+        sfm_convert_helper(options.sfm, options.mvs, options, sfm_work_dir, options.images_dir, mvs_work_dir)
         logging.info('run mvs(%s)', options.mvs)
         mvs_run_helper(options.mvs, options, mvs_work_dir)
         force_run = force_run + 1
