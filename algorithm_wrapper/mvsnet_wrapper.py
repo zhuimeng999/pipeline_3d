@@ -37,7 +37,7 @@ def run_mvsnet_predict(options, output_dir):
                            '--pretrained_model_ckpt_path', os.path.join(mvsnet_path, 'pretrain/tf_model_eth3d/3DCNNs/model.ckpt'),
                            '--ckpt_step', '150000']
     base_command = base_command + '"'+ '" "'.join(mvsnet_command_line)+'"'
-    subprocess.run(['bash', '-c', base_command], start_new_session=True, cwd=os.path.join(mvsnet_path, 'mvsnet'))
+    subprocess.run(['bash', '-c', base_command], cwd=os.path.join(mvsnet_path, 'mvsnet'))
 
 def run_rmvsnet_predict(options, output_dir):
     mvsnet_path = get_mvsnet_path()
@@ -52,4 +52,4 @@ def run_rmvsnet_predict(options, output_dir):
                            '--pretrained_model_ckpt_path', os.path.join(mvsnet_path, 'pretrain/tf_model_eth3d/GRU/model.ckpt'),
                            '--ckpt_step', '150000']
     base_command = base_command + '"'+ '" "'.join(mvsnet_command_line)+'"'
-    subprocess.run(['bash', '-c', base_command], start_new_session=True, cwd=os.path.join(mvsnet_path, 'mvsnet'))
+    subprocess.run(['bash', '-c', base_command], cwd=os.path.join(mvsnet_path, 'mvsnet'))

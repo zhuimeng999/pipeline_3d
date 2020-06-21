@@ -50,7 +50,7 @@ def run_pointmvsnet_predict(options, mvs_work_dir):
         mvsnet_command_line.append('--cpu')
     mvsnet_command_line = mvsnet_command_line + ['TEST.WEIGHT', 'outputs/dtu_wde3/model_pretrained.pth']
     base_command = base_command + '"' + '" "'.join(mvsnet_command_line) + '"'
-    subprocess.run(['bash', '-c', base_command], start_new_session=True, cwd=pointmvsnet_path)
+    subprocess.run(['bash', '-c', base_command], cwd=pointmvsnet_path)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
