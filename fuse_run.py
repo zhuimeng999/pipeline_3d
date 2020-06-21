@@ -35,8 +35,7 @@ def fuse_mve(fuse_work_dir):
 
 
 def fuse_mvsnet(fuse_work_dir):
-    run_mvsnet_fuse(os.path.join(fuse_work_dir, 'mvs_result'))
-    os.rename(os.path.join(fuse_work_dir, 'mvs_result/points_mvsnet'), os.path.join(fuse_work_dir, 'fused'))
+    run_mvsnet_fuse(fuse_work_dir)
 
 
 def fuse_pointmvsnet(fuse_work_dir):

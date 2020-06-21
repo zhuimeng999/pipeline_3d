@@ -1,6 +1,8 @@
 # -*- coding: UTF-8 -*-
 
 import os
+import pathlib
+import logging
 import subprocess
 from third_party.colmap.read_write_model import read_model, write_model
 from common_options import GLOBAL_OPTIONS as FLAGS
@@ -69,12 +71,18 @@ def run_mvsnet_fuse(output_dir):
     mvsnet_path = get_mvsnet_path()
     base_command = 'source ~/anaconda3/bin/activate mvsnet;'
     mvsnet_fuse_command_line = ['python', os.path.join(mvsnet_path, 'mvsnet/depthfusion.py'),
-                           '--dense_folder', output_dir,
+                           '--dense_folder', os.path.join(output_dir, 'mvs_result'),
                            '--fusibile_exe_path', get_fusibile_path(),
                            '--prob_threshold', '0.3']
 
     base_command = base_command + '"' + '" "'.join(mvsnet_fuse_command_line) + '"'
     subprocess.run(['bash', '-c', base_command], cwd=os.path.join(mvsnet_path, 'mvsnet'), check=True)
+    os.rename(os.path.join(output_dir, 'mvs_result/points_mvsnet'), os.path.join(output_dir, 'fused'))
+    pointcloud_path = list(pathlib.Path(os.path.join(output_dir, 'fused')).glob('**/*.ply'))
+    if len(pointcloud_path) != 1:
+        logging.critical('error %s', pointcloud_path)
+        exit(1)
+    os.rename(pointcloud_path[0].as_posix(), os.path.join(output_dir, 'pointcloud_mvsnet.ply'))
 
 
 def run_rmvsnet_predict(output_dir):

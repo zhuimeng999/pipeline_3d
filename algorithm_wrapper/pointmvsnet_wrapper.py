@@ -1,11 +1,11 @@
 # -*- coding: UTF-8 -*-
 
 import os
-import argparse
 import subprocess
 import pathlib
 import cv2
 import yaml
+import logging
 
 from common_options import GLOBAL_OPTIONS as FLAGS
 from algorithm_wrapper.mvsnet_wrapper import get_fusibile_path
@@ -74,6 +74,17 @@ def run_pointmvsnet_fuse(output_dir):
 
     base_command = base_command + '"' + '" "'.join(mvsnet_fuse_command_line) + '"'
     subprocess.run(['bash', '-c', base_command], env={'PYTHONPATH': pointmvsnet_path}, cwd=pointmvsnet_path, check=True)
+    tmp_out_dir = list(pathlib.Path(os.path.join(output_dir, 'mvs_result', 'depths')).glob('*_3ITER_*'))
+    if len(tmp_out_dir) != 1:
+        logging.critical('error %s', tmp_out_dir)
+        exit(1)
+    os.rename(tmp_out_dir[0].as_posix(), os.path.join(output_dir, 'fused'))
+
+    pointcloud_path = list(pathlib.Path(os.path.join(output_dir, 'fused')).glob('**/*.ply'))
+    if len(pointcloud_path) != 1:
+        logging.critical('error %s', pointcloud_path)
+        exit(1)
+    os.rename(pointcloud_path[0].as_posix(), os.path.join(output_dir, 'pointcloud_pointmvsnet.ply'))
 
 
 if __name__ == '__main__':
