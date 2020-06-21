@@ -7,10 +7,12 @@ import argparse
 import logging
 import pathlib
 from algorithm_wrapper.mvsnet_wrapper import get_mvsnet_path
+from algorithm_wrapper.pointmvsnet_wrapper import get_pointmvsnet_path
 
 
 def SetupFreeGpu(n = 1):
-    LogThanExitIfFailed(n > 0, 'gpu number must greater than 0, got %d', n)
+    if n <= 0:
+        return
     gpu_status_str = subprocess.run(('nvidia-smi', '--query-gpu=index,memory.free', '--format=csv'),
                                     stdout=subprocess.PIPE, check=True)
 
@@ -60,9 +62,12 @@ def mvs_network_check(mvs_alg:str):
     if mvs_alg in ['mvsnet', 'rmvsnet']:
         mvsnet_path = get_mvsnet_path()
         if mvsnet_path == '':
-            raise argparse.ArgumentTypeError('can not find mvsnet directory, so this mvs alorithm is not support')
+            raise argparse.ArgumentTypeError('can not find {} directory, so this mvs alorithm is not support'.format(mvs_alg))
         logging.info('find mvsnet path: %s', mvsnet_path)
     elif mvs_alg == 'pointmvsnet':
-        raise  argparse.ArgumentTypeError('currently pointmvsnet is not support')
+        pointmvsnet_path = get_pointmvsnet_path()
+        if pointmvsnet_path == '':
+            raise argparse.ArgumentTypeError('can not find pointmvsnet directory, so this mvs alorithm is not support')
+        logging.info('find mvsnet path: %s', pointmvsnet_path)
 
     return mvs_alg

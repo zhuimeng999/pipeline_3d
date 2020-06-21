@@ -12,6 +12,7 @@ from third_party.colmap.read_write_model import write_model, read_images_text, r
 from load_mve_sfm import load_mve_sfm, save_mve_sfm
 from common_options import get_common_options_parser
 from algorithm_wrapper.mvsnet_wrapper import export_colmap_to_mvsnet
+from algorithm_wrapper.pointmvsnet_wrapper import fix_mvsnet_to_pointmvsnet
 
 
 def create_colmap_sparse_directory(base_dir):
@@ -209,15 +210,28 @@ def mve2mve(in_mve_dir, in_images_dir, out_mve_dir, build_id: int = None):
     os.symlink(in_mve_dir, out_mve_dir)
 
 
+def colmap2mvsnet(in_colmap_dir, in_images_dir, out_mvsnet_dir, build_id: int = None):
+    select_dir = GetFileFromBuildId(os.path.join(in_colmap_dir, 'sparse'), "*", build_id)
+    colmap_undistored_command_line = ['colmap', 'image_undistorter',
+                                      '--image_path', in_images_dir,
+                                      '--input_path', select_dir,
+                                      '--output_path', out_mvsnet_dir,
+                                      '--min_scale', '1.0',
+                                      '--max_scale', '1.0']
+    subprocess.run(colmap_undistored_command_line, check=True)
+    export_colmap_to_mvsnet(out_mvsnet_dir)
+
+def colmap2rmvsnet(in_colmap_dir, in_images_dir, out_rmvsnet_dir, build_id: int = None):
+    colmap2mvsnet(in_colmap_dir, in_images_dir, out_rmvsnet_dir, build_id)
+
+def colmap2pointmvsnet(in_colmap_dir, in_images_dir, out_pointmvsnet_dir, build_id: int = None):
+    colmap2mvsnet(in_colmap_dir, in_images_dir, out_pointmvsnet_dir, build_id)
+    fix_mvsnet_to_pointmvsnet(out_pointmvsnet_dir)
+
 def sfm_convert_helper(src_alg, target_alg, in_alg_dir, in_images_dir, out_alg_dir, build_id: int = None):
     this_module = sys.modules[__name__]
-    if target_alg in ['mvsnet', 'rmvsnet', 'pointmvsnet']:
-        convert_fun = getattr(this_module, src_alg + '2' + 'colmap')
-        convert_fun(in_alg_dir, in_images_dir, out_alg_dir, build_id)
-        export_colmap_to_mvsnet(out_alg_dir)
-    else:
-        convert_fun = getattr(this_module, src_alg + '2' + target_alg)
-        convert_fun(in_alg_dir, in_images_dir, out_alg_dir, build_id)
+    convert_fun = getattr(this_module, src_alg + '2' + target_alg)
+    convert_fun(in_alg_dir, in_images_dir, out_alg_dir, build_id)
 
 
 if __name__ == '__main__':

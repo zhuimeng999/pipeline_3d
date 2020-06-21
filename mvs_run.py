@@ -2,9 +2,11 @@
 
 import os, sys
 import argparse, logging
-from utils import SetupFreeGpu, InitLogging
+from utils import SetupFreeGpu, InitLogging, mvs_network_check
 import subprocess
-from algorithm_wrapper.mvsnet_wrapper import run_mvsnet_predict
+from algorithm_wrapper.mvsnet_wrapper import run_mvsnet_predict, run_rmvsnet_predict
+from algorithm_wrapper.pointmvsnet_wrapper import run_pointmvsnet_predict
+from common_options import get_common_options_parser
 
 
 def maybe_convert_sfm_result():
@@ -16,15 +18,17 @@ def mvs_colmap(options, mvs_work_dir):
                                        '--workspace_path', mvs_work_dir]
     subprocess.run(colmap_patch_match_command_line, check=True)
 
+
 def mvs_openmvs(options, mvs_work_dir):
     openmvs_command_line = ['DensifyPointCloud',
                             '--working-folder', mvs_work_dir,
-                                       os.path.join(mvs_work_dir, 'scene.mvs')]
+                            os.path.join(mvs_work_dir, 'scene.mvs')]
     subprocess.run(openmvs_command_line, check=True)
+
 
 def mvs_pmvs(options, mvs_work_dir):
     pmvs_command_line = ['pmvs2', os.path.join(mvs_work_dir, 'pmvs/'),
-                                       'option-all']
+                         'option-all']
     subprocess.run(pmvs_command_line, check=True)
 
 
@@ -32,8 +36,17 @@ def mvs_mve(options, mvs_work_dir):
     pmvs_command_line = ['dmrecon', '-s2', os.path.join(mvs_work_dir, 'view')]
     subprocess.run(pmvs_command_line, check=True)
 
+
 def mvs_mvsnet(options, mvs_work_dir):
     run_mvsnet_predict(options, mvs_work_dir)
+
+
+def mvs_rmvsnet(options, mvs_work_dir):
+    run_rmvsnet_predict(options, mvs_work_dir)
+
+
+def mvs_pointmvsnet(options, mvs_work_dir):
+    run_pointmvsnet_predict(options, mvs_work_dir)
 
 
 def mvs_run_helper(alg, options, mvs_work_dir):
@@ -41,30 +54,22 @@ def mvs_run_helper(alg, options, mvs_work_dir):
     mvs_run_fun = getattr(this_module, 'mvs_' + alg)
     mvs_run_fun(options, mvs_work_dir)
 
+
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('sfm_path', type=str, help='sfm result directory')
-    parser.add_argument('--sfm_algorithm', default=None, choices=['colmap', 'openmvg', 'theiasfm', 'mve'], help='sfm algorithm type')
-    parser.add_argument('output_path', type=str, help='output directory')
-    subparser = parser.add_subparsers(dest='alg_type', metavar='algorithm', help='algorithm to use, support are {colmap|openmvs|cmvs-pmvs|mve}')
-    parser_colmap = subparser.add_parser('colmap')
-    parser_openmvs = subparser.add_parser('openmvs')
-    parser_cpmvs = subparser.add_parser('cmvs-pmvs')
-    parser_mve = subparser.add_parser('mve')
+    InitLogging()
+
+    parser = argparse.ArgumentParser(parents=[get_common_options_parser()])
+    parser.add_argument('mvs_work_dir', type=str, help='working directory')
+    parser.add_argument('--sfm', default='colmap', choices=['colmap', 'openmvg', 'theiasfm', 'mve'],
+                        help='sfm algorithm')
+
+    mvs_algorithm_list = ['colmap', 'openmvs', 'pmvs', 'cmvs', 'mve',
+                          'mvsnet', 'rmvsnet', 'pointmvsnet']
+    parser.add_argument('--mvs', type=mvs_network_check, default='colmap', choices=mvs_algorithm_list,
+                        help='mvs algorithm')
 
     options = parser.parse_args()
 
-    InitLogging()
     logging.info('select gpu %s', SetupFreeGpu(options.num_gpu))
 
-
-    maybe_convert_sfm_result()
-
-    if options.alg_type == 'openmvs':
-        mvs_openmvs(options)
-    elif options.alg_type == 'cmvs-pmvs':
-        mvs_cpmvs(options)
-    elif options.alg_type == 'mve':
-        mvs_mve(options)
-    else:
-        mvs_colmap(options)
+    mvs_run_helper(options.mvs, options, options.mvs_work_dir)
