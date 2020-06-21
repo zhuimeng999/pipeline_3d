@@ -1,6 +1,5 @@
 # -*- coding: UTF-8 -*-
 
-import argparse
 import logging
 import os
 import sys
@@ -10,7 +9,7 @@ import subprocess
 from utils import InitLogging, LogThanExitIfFailed, GetFileFromBuildId
 from third_party.colmap.read_write_model import write_model, read_images_text, read_points3D_text, write_points3D_text
 from load_mve_sfm import load_mve_sfm, save_mve_sfm
-from common_options import get_common_options_parser
+from common_options import GLOBAL_OPTIONS as FLAGS
 from algorithm_wrapper.mvsnet_wrapper import export_colmap_to_mvsnet
 from algorithm_wrapper.pointmvsnet_wrapper import fix_mvsnet_to_pointmvsnet
 
@@ -27,7 +26,7 @@ def create_colmap_sparse_directory(base_dir):
     return tmp_work_dir
 
 
-def colmap2colmap(options, in_colmap_dir, in_images_dir, out_colmap_dir, build_id: int = None):
+def sfm_colmap2colmap(in_colmap_dir, in_images_dir, out_colmap_dir, build_id: int = None):
     select_dir = GetFileFromBuildId(os.path.join(in_colmap_dir, 'sparse'), "*", build_id)
     colmap_undistored_command_line = ['colmap', 'image_undistorter',
                                       '--image_path', in_images_dir,
@@ -36,7 +35,7 @@ def colmap2colmap(options, in_colmap_dir, in_images_dir, out_colmap_dir, build_i
     subprocess.run(colmap_undistored_command_line, check=True)
 
 
-def FixedOpenmvgToColmapError(sfm_colmap_dir):
+def fixed_openmvg_to_colmap_error(sfm_colmap_dir):
     images = read_images_text(os.path.join(sfm_colmap_dir, 'images.txt'))
     points3Ds = read_points3D_text(os.path.join(sfm_colmap_dir, 'points3D.txt'))
 
@@ -58,7 +57,7 @@ def FixedOpenmvgToColmapError(sfm_colmap_dir):
     write_points3D_text(points3Ds, os.path.join(sfm_colmap_dir, 'points3D.txt'))
 
 
-def mve2others(in_mve_dir, in_images_dir, out_others_dir, build_id: int = None, out_type='colmap'):
+def sfm_mve2others(in_mve_dir, in_images_dir, out_others_dir, build_id: int = None, out_type='colmap'):
     assert build_id is None
     distorted_convert_dir = os.path.join(out_others_dir, 'tmp')
     tmp_work_dir = create_colmap_sparse_directory(distorted_convert_dir)
@@ -73,7 +72,7 @@ def mve2others(in_mve_dir, in_images_dir, out_others_dir, build_id: int = None, 
     sfm_convert_helper('colmap', out_type, distorted_convert_dir, original_images_dir, out_others_dir)
 
 
-def openmvg2colmap(options, in_openmvg_dir, in_images_dir, out_colmap_dir, build_id: int = None):
+def sfm_openmvg2colmap(in_openmvg_dir, in_images_dir, out_colmap_dir, build_id: int = None):
     distorted_convert_dir = os.path.join(out_colmap_dir, 'tmp')
     tmp_work_dir = create_colmap_sparse_directory(distorted_convert_dir)
     assert build_id is None
@@ -83,11 +82,11 @@ def openmvg2colmap(options, in_openmvg_dir, in_images_dir, out_colmap_dir, build
     subprocess.run(openmvg_to_colmap_command_line, check=True)
     logging.info(
         'there are errors with openMVG_main_openMVG2Colmap, the 3D->2D map partialily wrong, we can fix this')
-    FixedOpenmvgToColmapError(sfm_colmap_dir=tmp_work_dir)
-    colmap2colmap(distorted_convert_dir, in_images_dir, out_colmap_dir)
+    fixed_openmvg_to_colmap_error(sfm_colmap_dir=tmp_work_dir)
+    sfm_colmap2colmap(distorted_convert_dir, in_images_dir, out_colmap_dir)
 
 
-def theiasfm2colmap(options, in_theiasfm_dir, in_images_dir, out_colmap_dir, build_id: int = None):
+def sfm_theiasfm2colmap(in_theiasfm_dir, in_images_dir, out_colmap_dir, build_id: int = None):
     select_file = GetFileFromBuildId(in_theiasfm_dir, "reconstruction.bin*", build_id)
     distorted_convert_dir = os.path.join(out_colmap_dir, 'tmp')
     tmp_work_dir = create_colmap_sparse_directory(distorted_convert_dir)
@@ -96,15 +95,15 @@ def theiasfm2colmap(options, in_theiasfm_dir, in_images_dir, out_colmap_dir, bui
                                        '-output_folder', tmp_work_dir,
                                        '--logtostderr']
     subprocess.run(theiasfm_to_colmap_command_line, check=True)
-    colmap2colmap(distorted_convert_dir, in_images_dir, out_colmap_dir)
+    sfm_colmap2colmap(distorted_convert_dir, in_images_dir, out_colmap_dir)
 
 
-def mve2colmap(options, in_mve_dir, in_images_dir, out_colmap_dir, build_id: int = None):
-    mve2others(in_mve_dir, in_images_dir, out_colmap_dir, build_id=build_id, out_type='colmap')
+def sfm_mve2colmap(in_mve_dir, in_images_dir, out_colmap_dir, build_id: int = None):
+    sfm_mve2others(in_mve_dir, in_images_dir, out_colmap_dir, build_id=build_id, out_type='colmap')
 
 
-def colmap2openmvs(options, in_colmap_dir, in_images_dir, out_openmvs_dir, build_id: int = None):
-    colmap2colmap(in_colmap_dir, in_images_dir, out_openmvs_dir, build_id)
+def colmap2openmvs(in_colmap_dir, in_images_dir, out_openmvs_dir, build_id: int = None):
+    sfm_colmap2colmap(in_colmap_dir, in_images_dir, out_openmvs_dir, build_id)
     interface_colmap_command_line = ['InterfaceCOLMAP',
                                      '--working-folder', out_openmvs_dir,
                                      '--input-file', out_openmvs_dir,
@@ -113,7 +112,7 @@ def colmap2openmvs(options, in_colmap_dir, in_images_dir, out_openmvs_dir, build
     subprocess.run(interface_colmap_command_line, check=True)
 
 
-def openmvg2openmvs(options, in_openmvg_dir, in_images_dir, out_openmvs_dir, build_id: int = None):
+def sfm_openmvg2openmvs(in_openmvg_dir, in_images_dir, out_openmvs_dir, build_id: int = None):
     openmvg2openmvs_command_line = ['openMVG_main_openMVG2openMVS',
                                     '--sfmdata', os.path.join(in_openmvg_dir, 'sfm_data.bin'),
                                     '--outfile', os.path.join(out_openmvs_dir, 'scene.mvs'),
@@ -121,8 +120,8 @@ def openmvg2openmvs(options, in_openmvg_dir, in_images_dir, out_openmvs_dir, bui
     subprocess.run(openmvg2openmvs_command_line, check=True)
 
 
-def theiasfm2openmvs(options, in_theiasfm_dir, in_images_dir, out_openmvs_dir, build_id: int = None):
-    theiasfm2colmap(in_theiasfm_dir, in_images_dir, out_openmvs_dir, build_id)
+def sfm_theiasfm2openmvs(in_theiasfm_dir, in_images_dir, out_openmvs_dir, build_id: int = None):
+    sfm_theiasfm2colmap(in_theiasfm_dir, in_images_dir, out_openmvs_dir, build_id)
     interface_colmap_command_line = ['InterfaceCOLMAP',
                                      '--working-folder', out_openmvs_dir,
                                      '--input-file', out_openmvs_dir,
@@ -131,8 +130,8 @@ def theiasfm2openmvs(options, in_theiasfm_dir, in_images_dir, out_openmvs_dir, b
     subprocess.run(interface_colmap_command_line, check=True)
 
 
-def mve2openmvs(options, in_mve_dir, in_images_dir, out_openmvs_dir, build_id: int = None):
-    mve2colmap(in_mve_dir, in_images_dir, out_openmvs_dir, build_id)
+def sfm_mve2openmvs(in_mve_dir, in_images_dir, out_openmvs_dir, build_id: int = None):
+    sfm_mve2colmap(in_mve_dir, in_images_dir, out_openmvs_dir, build_id)
     interface_colmap_command_line = ['InterfaceCOLMAP',
                                      '--working-folder', out_openmvs_dir,
                                      '--input-file', out_openmvs_dir,
@@ -141,7 +140,7 @@ def mve2openmvs(options, in_mve_dir, in_images_dir, out_openmvs_dir, build_id: i
     subprocess.run(interface_colmap_command_line, check=True)
 
 
-def colmap2pmvs(options, in_colmap_dir, in_images_dir, out_pmvs_dir, build_id: int = None):
+def sfm_colmap2pmvs(in_colmap_dir, in_images_dir, out_pmvs_dir, build_id: int = None):
     select_dir = GetFileFromBuildId(os.path.join(in_colmap_dir, 'sparse'), "*", build_id)
     colmap_undistored_command_line = ['colmap', 'image_undistorter',
                                       '--image_path', in_images_dir,
@@ -151,7 +150,7 @@ def colmap2pmvs(options, in_colmap_dir, in_images_dir, out_pmvs_dir, build_id: i
     subprocess.run(colmap_undistored_command_line, check=True)
 
 
-def openmvg2pmvs(options, in_openmvg_dir, in_images_dir, out_openmvs_dir, build_id: int = None):
+def sfm_openmvg2pmvs(in_openmvg_dir, in_images_dir, out_openmvs_dir, build_id: int = None):
     openmvg2openmvs_command_line = ['openMVG_main_openMVG2PMVS',
                                     '--sfmdata', os.path.join(in_openmvg_dir, 'sfm_data.bin'),
                                     '--outdir', out_openmvs_dir]
@@ -162,7 +161,7 @@ def openmvg2pmvs(options, in_openmvg_dir, in_images_dir, out_openmvs_dir, build_
     os.rename(os.path.join(gen_pmvs_dir, 'pmvs_options.txt'), os.path.join(gen_pmvs_dir, 'option-all'))
 
 
-def theiasfm2pmvs(options, in_theiasfm_dir, in_images_dir, out_pmvs_dir, build_id: int = None):
+def sfm_theiasfm2pmvs(in_theiasfm_dir, in_images_dir, out_pmvs_dir, build_id: int = None):
     tmp = pathlib.Path(in_images_dir)
     images = None
     for f in tmp.iterdir():
@@ -184,15 +183,16 @@ def theiasfm2pmvs(options, in_theiasfm_dir, in_images_dir, out_pmvs_dir, build_i
     os.remove(os.path.join(gen_pmvs_dir, 'pmvs_options.txt'))
 
 
-def mve2pmvs(options, in_mve_dir, in_images_dir, out_pmvs_dir, build_id: int = None):
-    mve2others(in_mve_dir, in_images_dir, out_pmvs_dir, build_id=build_id, out_type='pmvs')
+def sfm_mve2pmvs(in_mve_dir, in_images_dir, out_pmvs_dir, build_id: int = None):
+    sfm_mve2others(in_mve_dir, in_images_dir, out_pmvs_dir, build_id=build_id, out_type='pmvs')
 
 
-def colmap2mve(options, in_colmap_dir, in_images_dir, out_mve_dir, build_id: int = None):
-    colmap2colmap(in_colmap_dir, in_images_dir, out_mve_dir, build_id)
+def sfm_colmap2mve(in_colmap_dir, in_images_dir, out_mve_dir, build_id: int = None):
+    sfm_colmap2colmap(in_colmap_dir, in_images_dir, out_mve_dir, build_id)
     save_mve_sfm(os.path.join(out_mve_dir, 'sparse'), os.path.join(out_mve_dir, 'images'), out_mve_dir)
 
-def openmvg2mve(options, in_openmvg_dir, in_images_dir, out_mve_dir, build_id: int = None):
+
+def sfm_openmvg2mve(in_openmvg_dir, in_images_dir, out_mve_dir, build_id: int = None):
     openmvg2mve_command_line = ['openMVG_main_openMVG2MVE2',
                                 '--sfmdata', os.path.join(in_openmvg_dir, 'sfm_data.bin'),
                                 '--outdir', out_mve_dir]
@@ -201,16 +201,17 @@ def openmvg2mve(options, in_openmvg_dir, in_images_dir, out_mve_dir, build_id: i
     os.rename(os.path.join(out_mve_dir, 'MVE'), os.path.join(out_mve_dir, 'view'))
 
 
-def theiasfm2mve(options, in_theiasfm_dir, in_images_dir, out_mve_dir, build_id: int = None):
-    theiasfm2colmap(in_theiasfm_dir, in_images_dir, out_mve_dir, build_id)
+def sfm_theiasfm2mve(in_theiasfm_dir, in_images_dir, out_mve_dir, build_id: int = None):
+    sfm_theiasfm2colmap(in_theiasfm_dir, in_images_dir, out_mve_dir, build_id)
     save_mve_sfm(os.path.join(out_mve_dir, 'sparse'), os.path.join(out_mve_dir, 'images'), out_mve_dir)
 
-def mve2mve(options, in_mve_dir, in_images_dir, out_mve_dir, build_id: int = None):
+
+def sfm_mve2mve(in_mve_dir, in_images_dir, out_mve_dir, build_id: int = None):
     os.rmdir(out_mve_dir)
     os.symlink(in_mve_dir, out_mve_dir)
 
 
-def colmap2mvsnet(options, in_colmap_dir, in_images_dir, out_mvsnet_dir, build_id: int = None):
+def sfm_colmap2mvsnet(in_colmap_dir, in_images_dir, out_mvsnet_dir, build_id: int = None):
     select_dir = GetFileFromBuildId(os.path.join(in_colmap_dir, 'sparse'), "*", build_id)
     colmap_undistored_command_line = ['colmap', 'image_undistorter',
                                       '--image_path', in_images_dir,
@@ -219,32 +220,33 @@ def colmap2mvsnet(options, in_colmap_dir, in_images_dir, out_mvsnet_dir, build_i
                                       '--min_scale', '1.0',
                                       '--max_scale', '1.0']
     subprocess.run(colmap_undistored_command_line, check=True)
-    export_colmap_to_mvsnet(options, out_mvsnet_dir)
+    export_colmap_to_mvsnet(out_mvsnet_dir)
 
-def colmap2rmvsnet(options, in_colmap_dir, in_images_dir, out_rmvsnet_dir, build_id: int = None):
-    colmap2mvsnet(options, in_colmap_dir, in_images_dir, out_rmvsnet_dir, build_id)
 
-def colmap2pointmvsnet(options, in_colmap_dir, in_images_dir, out_pointmvsnet_dir, build_id: int = None):
-    colmap2mvsnet(options, in_colmap_dir, in_images_dir, out_pointmvsnet_dir, build_id)
+def sfm_colmap2rmvsnet(in_colmap_dir, in_images_dir, out_rmvsnet_dir, build_id: int = None):
+    sfm_colmap2mvsnet(in_colmap_dir, in_images_dir, out_rmvsnet_dir, build_id)
+
+
+def sfm_colmap2pointmvsnet(in_colmap_dir, in_images_dir, out_pointmvsnet_dir, build_id: int = None):
+    sfm_colmap2mvsnet(in_colmap_dir, in_images_dir, out_pointmvsnet_dir, build_id)
     fix_mvsnet_to_pointmvsnet(out_pointmvsnet_dir)
 
-def sfm_convert_helper(src_alg, target_alg, options, in_alg_dir, in_images_dir, out_alg_dir, build_id: int = None):
+
+def sfm_convert_helper(src_alg, target_alg, in_alg_dir, in_images_dir, out_alg_dir, build_id: int = None):
     this_module = sys.modules[__name__]
-    convert_fun = getattr(this_module, src_alg + '2' + target_alg)
-    convert_fun(options, in_alg_dir, in_images_dir, out_alg_dir, build_id)
+    convert_fun = getattr(this_module, 'sfm_' + src_alg + '2' + target_alg)
+    convert_fun(in_alg_dir, in_images_dir, out_alg_dir, build_id)
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(parents=[get_common_options_parser()])
-    parser.add_argument('input_dir', type=str, help='input directory')
-    parser.add_argument('images_dir', type=str, help='images directory')
-    parser.add_argument('output_dir', type=str, help='output directory')
-    parser.add_argument('--sfm', default='colmap', choices=['colmap', 'openmvg', 'theiasfm', 'mve'],
-                        help='sfm algorithm')
-    parser.add_argument('--mvs', default='colmap', choices=['colmap', 'openmvs', 'pmvs', 'cmvs', 'mve'],
-                        help='mvs algorithm')
-    options = parser.parse_args()
     InitLogging()
+    FLAGS.add_argument('input_dir', type=str, help='input directory')
+    FLAGS.add_argument('images_dir', type=str, help='images directory')
+    FLAGS.add_argument('output_dir', type=str, help='output directory')
+    FLAGS.add_argument('--sfm', default='colmap', choices=['colmap', 'openmvg', 'theiasfm', 'mve'],
+                       help='sfm algorithm')
+    FLAGS.add_argument('--mvs', default='colmap', choices=['colmap', 'openmvs', 'pmvs', 'cmvs', 'mve'],
+                       help='mvs algorithm')
+    FLAGS.parse_args()
 
-    sfm_convert_helper(options.sfm, options.mvs, options.input_dir, options.images_dir, options.output_dir)
-
+    sfm_convert_helper(FLAGS.sfm, FLAGS.mvs, FLAGS.input_dir, FLAGS.images_dir, FLAGS.output_dir)

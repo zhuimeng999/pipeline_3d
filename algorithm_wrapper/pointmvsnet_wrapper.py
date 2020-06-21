@@ -7,6 +7,8 @@ import pathlib
 import cv2
 import yaml
 
+from common_options import GLOBAL_OPTIONS as FLAGS
+
 
 def get_pointmvsnet_path() -> str:
     pointmvsnet_path = os.path.normpath(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../PointMVSNet')))
@@ -35,31 +37,31 @@ def fix_mvsnet_to_pointmvsnet(dataset_dir):
     os.symlink(os.path.join(dataset_dir, 'pair.txt'), os.path.join(dataset_dir, 'Cameras/pair.txt'))
 
 
-def run_pointmvsnet_predict(options, mvs_work_dir):
+def run_pointmvsnet_predict(mvs_work_dir):
     config_filepath = os.path.join(mvs_work_dir, 'pointmvsnet_cfg.yaml')
     with open(os.path.join(os.path.dirname(__file__), '../data/dtu_wde3.yaml'), 'r') as f_in:
         with open(config_filepath, 'w') as f_out:
             params = yaml.load(f_in)
             params['DATA']['TEST']['ROOT_DIR'] = mvs_work_dir
-            if options.mvs_max_w is not None:
-                params['DATA']['TEST']['IMG_WIDTH'] = options.mvs_max_w
-            if options.mvs_max_h is not None:
-                params['DATA']['TEST']['IMG_HEIGHT'] = options.mvs_max_h
-            if options.mvs_max_d is not None:
-                params['DATA']['TEST']['NUM_VIRTUAL_PLANE'] = options.mvs_max_d
+            if FLAGS.mvs_max_w is not None:
+                params['DATA']['TEST']['IMG_WIDTH'] = FLAGS.mvs_max_w
+            if FLAGS.mvs_max_h is not None:
+                params['DATA']['TEST']['IMG_HEIGHT'] = FLAGS.mvs_max_h
+            if FLAGS.mvs_max_d is not None:
+                params['DATA']['TEST']['NUM_VIRTUAL_PLANE'] = FLAGS.mvs_max_d
             yaml.dump(params, f_out)
     pointmvsnet_path = get_pointmvsnet_path()
     base_command = 'source ~/anaconda3/bin/activate PointMVSNet;'
     mvsnet_command_line = ['python', 'pointmvsnet/test.py',
                            '--cfg', config_filepath]
-    if options.num_gpu == 0:
+    if FLAGS.num_gpu == 0:
         mvsnet_command_line.append('--cpu')
     mvsnet_command_line = mvsnet_command_line + ['TEST.WEIGHT', 'outputs/dtu_wde3/model_pretrained.pth']
     base_command = base_command + '"' + '" "'.join(mvsnet_command_line) + '"'
     subprocess.run(['bash', '-c', base_command], cwd=pointmvsnet_path)
 
+
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('work_dir', type=str, help='woring directory')
-    options = parser.parse_args()
-    fix_mvsnet_to_pointmvsnet(options.work_dir)
+    FLAGS.add_argument('work_dir', type=str, help='woring directory')
+    FLAGS.parse_args()
+    fix_mvsnet_to_pointmvsnet(FLAGS.work_dir)

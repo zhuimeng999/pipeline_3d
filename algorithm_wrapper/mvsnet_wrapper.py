@@ -3,6 +3,7 @@
 import os
 import subprocess
 from third_party.colmap.read_write_model import read_model, write_model
+from common_options import GLOBAL_OPTIONS as FLAGS
 
 
 def get_mvsnet_path() -> str:
@@ -13,21 +14,21 @@ def get_mvsnet_path() -> str:
         return ''
 
 
-def get_mvsnet_options(options):
+def get_mvsnet_options():
     mvsnet_options = []
-    if options.mvs_max_w is not None:
+    if FLAGS.mvs_max_w is not None:
         mvsnet_options.append('--max_w')
-        mvsnet_options.append(str(options.mvs_max_w))
-    if options.mvs_max_h is not None:
+        mvsnet_options.append(str(FLAGS.mvs_max_w))
+    if FLAGS.mvs_max_h is not None:
         mvsnet_options.append('--max_h')
-        mvsnet_options.append(str(options.mvs_max_h))
-    if options.mvs_max_d is not None:
+        mvsnet_options.append(str(FLAGS.mvs_max_h))
+    if FLAGS.mvs_max_d is not None:
         mvsnet_options.append('--max_d')
-        mvsnet_options.append(str(options.mvs_max_d))
+        mvsnet_options.append(str(FLAGS.mvs_max_d))
     return mvsnet_options
 
 
-def export_colmap_to_mvsnet(options, output_dir):
+def export_colmap_to_mvsnet(output_dir):
     if os.path.exists(os.path.join(output_dir, 'sparse/cameras.txt')) is False:
         sparse_dir = os.path.join(output_dir, 'sparse')
         write_model(*read_model(sparse_dir, '.bin'), sparse_dir, '.txt')
@@ -35,13 +36,13 @@ def export_colmap_to_mvsnet(options, output_dir):
     colmap2mvsnet_path = os.path.join(mvsnet_path, 'mvsnet/colmap2mvsnet.py')
     colmap2mvsnet_command_line = ['python', colmap2mvsnet_path,
                                   '--dense_folder', output_dir]
-    if options.mvs_max_d is not None:
+    if FLAGS.mvs_max_d is not None:
         colmap2mvsnet_command_line.append('--max_d')
-        colmap2mvsnet_command_line.append(str(options.mvs_max_d))
+        colmap2mvsnet_command_line.append(str(FLAGS.mvs_max_d))
     subprocess.run(colmap2mvsnet_command_line, check=True)
 
 
-def run_mvsnet_predict(options, output_dir):
+def run_mvsnet_predict(output_dir):
     mvsnet_path = get_mvsnet_path()
     base_command = 'source ~/anaconda3/bin/activate mvsnet;'
     mvsnet_command_line = ['python', os.path.join(mvsnet_path, 'mvsnet/test.py'),
@@ -52,11 +53,11 @@ def run_mvsnet_predict(options, output_dir):
                            os.path.join(mvsnet_path, 'pretrain/tf_model_eth3d/3DCNNs/model.ckpt'),
                            '--ckpt_step', '150000']
 
-    base_command = base_command + '"' + '" "'.join(mvsnet_command_line + get_mvsnet_options(options)) + '"'
+    base_command = base_command + '"' + '" "'.join(mvsnet_command_line + get_mvsnet_options()) + '"'
     subprocess.run(['bash', '-c', base_command], cwd=os.path.join(mvsnet_path, 'mvsnet'))
 
 
-def run_rmvsnet_predict(options, output_dir):
+def run_rmvsnet_predict(output_dir):
     mvsnet_path = get_mvsnet_path()
     base_command = 'source ~/anaconda3/bin/activate mvsnet;'
     mvsnet_command_line = ['python', os.path.join(mvsnet_path, 'mvsnet/test.py'),
@@ -66,5 +67,5 @@ def run_rmvsnet_predict(options, output_dir):
                            '--pretrained_model_ckpt_path',
                            os.path.join(mvsnet_path, 'pretrain/tf_model_eth3d/GRU/model.ckpt'),
                            '--ckpt_step', '150000']
-    base_command = base_command + '"' + '" "'.join(mvsnet_command_line + get_mvsnet_options(options)) + '"'
+    base_command = base_command + '"' + '" "'.join(mvsnet_command_line + get_mvsnet_options()) + '"'
     subprocess.run(['bash', '-c', base_command], cwd=os.path.join(mvsnet_path, 'mvsnet'))
