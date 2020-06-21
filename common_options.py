@@ -13,3 +13,14 @@ def get_common_options_parser():
     parser.add_argument('--mvs_max_h', type=int, default=None, help='max height to mvs input')
     parser.add_argument('--mvs_max_d', type=int, default=None, help='max depth to mvs input')
     return parser
+
+
+class GlobalOptionsStorage:
+    def __init__(self):
+        self.options = None
+
+    def __getattr__(self, item):
+        pass
+
+    def set_options(self, options):
+        pss

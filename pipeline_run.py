@@ -14,6 +14,7 @@ from common_options import get_common_options_parser
 
 
 if __name__ == '__main__':
+    InitLogging()
     parser = argparse.ArgumentParser(parents=[get_common_options_parser()])
     parser.add_argument('images_dir', type=str, help='images directory to process')
     parser.add_argument('workspace_dir', type=str, help='working directory')
@@ -28,7 +29,6 @@ if __name__ == '__main__':
 
     options = parser.parse_args()
 
-    InitLogging()
     logging.info('select gpu %s', SetupFreeGpu(options.num_gpu))
 
     if options.auto_rerun is True:

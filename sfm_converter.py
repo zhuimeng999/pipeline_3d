@@ -222,10 +222,10 @@ def colmap2mvsnet(options, in_colmap_dir, in_images_dir, out_mvsnet_dir, build_i
     export_colmap_to_mvsnet(options, out_mvsnet_dir)
 
 def colmap2rmvsnet(options, in_colmap_dir, in_images_dir, out_rmvsnet_dir, build_id: int = None):
-    colmap2mvsnet(in_colmap_dir, in_images_dir, out_rmvsnet_dir, build_id)
+    colmap2mvsnet(options, in_colmap_dir, in_images_dir, out_rmvsnet_dir, build_id)
 
 def colmap2pointmvsnet(options, in_colmap_dir, in_images_dir, out_pointmvsnet_dir, build_id: int = None):
-    colmap2mvsnet(in_colmap_dir, in_images_dir, out_pointmvsnet_dir, build_id)
+    colmap2mvsnet(options, in_colmap_dir, in_images_dir, out_pointmvsnet_dir, build_id)
     fix_mvsnet_to_pointmvsnet(out_pointmvsnet_dir)
 
 def sfm_convert_helper(src_alg, target_alg, options, in_alg_dir, in_images_dir, out_alg_dir, build_id: int = None):
