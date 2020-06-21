@@ -4,8 +4,8 @@ import os, sys
 import logging
 from utils import SetupFreeGpu, InitLogging, mvs_network_check
 import subprocess
-from algorithm_wrapper.mvsnet_wrapper import run_mvsnet_predict, run_rmvsnet_predict
-from algorithm_wrapper.pointmvsnet_wrapper import run_pointmvsnet_predict
+from algorithm_wrapper.mvsnet_wrapper import run_mvsnet_fuse
+from algorithm_wrapper.pointmvsnet_wrapper import run_pointmvsnet_fuse
 from common_options import GLOBAL_OPTIONS as FLAGS
 
 
@@ -35,15 +35,12 @@ def fuse_mve(fuse_work_dir):
 
 
 def fuse_mvsnet(fuse_work_dir):
-    run_mvsnet_predict(fuse_work_dir)
-
-
-def fuse_rmvsnet(fuse_work_dir):
-    run_rmvsnet_predict(fuse_work_dir)
+    run_mvsnet_fuse(os.path.join(fuse_work_dir, 'mvs_result'))
+    os.rename(os.path.join(fuse_work_dir, 'mvs_result/points_mvsnet'), os.path.join(fuse_work_dir, 'fused'))
 
 
 def fuse_pointmvsnet(fuse_work_dir):
-    run_pointmvsnet_predict(fuse_work_dir)
+    run_pointmvsnet_fuse(fuse_work_dir)
 
 
 def fuse_run_helper(alg, fuse_work_dir):

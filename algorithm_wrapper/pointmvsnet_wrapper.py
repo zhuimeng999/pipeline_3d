@@ -8,6 +8,7 @@ import cv2
 import yaml
 
 from common_options import GLOBAL_OPTIONS as FLAGS
+from algorithm_wrapper.mvsnet_wrapper import get_fusibile_path
 
 
 def get_pointmvsnet_path() -> str:
@@ -43,6 +44,7 @@ def run_pointmvsnet_predict(mvs_work_dir):
         with open(config_filepath, 'w') as f_out:
             params = yaml.load(f_in)
             params['DATA']['TEST']['ROOT_DIR'] = mvs_work_dir
+            params['OUTPUT_DIR'] = os.path.join(mvs_work_dir, 'depths')
             if FLAGS.mvs_max_w is not None:
                 params['DATA']['TEST']['IMG_WIDTH'] = FLAGS.mvs_max_w
             if FLAGS.mvs_max_h is not None:
@@ -58,7 +60,20 @@ def run_pointmvsnet_predict(mvs_work_dir):
         mvsnet_command_line.append('--cpu')
     mvsnet_command_line = mvsnet_command_line + ['TEST.WEIGHT', 'outputs/dtu_wde3/model_pretrained.pth']
     base_command = base_command + '"' + '" "'.join(mvsnet_command_line) + '"'
-    subprocess.run(['bash', '-c', base_command], cwd=pointmvsnet_path)
+    subprocess.run(['bash', '-c', base_command], cwd=pointmvsnet_path, check=True)
+
+
+def run_pointmvsnet_fuse(output_dir):
+    pointmvsnet_path = get_pointmvsnet_path()
+    base_command = 'source ~/anaconda3/bin/activate PointMVSNet;'
+    mvsnet_fuse_command_line = ['python', os.path.join(pointmvsnet_path, 'tools/depthfusion.py'),
+                                '--eval_folder', os.path.join(output_dir, 'mvs_result'),
+                                '--fusibile_exe_path', get_fusibile_path(),
+                                '-f', 'depths',
+                                '-n', 'flow3']
+
+    base_command = base_command + '"' + '" "'.join(mvsnet_fuse_command_line) + '"'
+    subprocess.run(['bash', '-c', base_command], env={'PYTHONPATH': pointmvsnet_path}, cwd=pointmvsnet_path, check=True)
 
 
 if __name__ == '__main__':

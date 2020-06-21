@@ -13,6 +13,9 @@ def get_mvsnet_path() -> str:
     else:
         return ''
 
+def get_fusibile_path() -> str:
+    return os.path.join(get_mvsnet_path(), 'fusibile/fusibile')
+
 
 def get_mvsnet_options():
     mvsnet_options = []
@@ -32,6 +35,8 @@ def export_colmap_to_mvsnet(output_dir):
     if os.path.exists(os.path.join(output_dir, 'sparse/cameras.txt')) is False:
         sparse_dir = os.path.join(output_dir, 'sparse')
         write_model(*read_model(sparse_dir, '.bin'), sparse_dir, '.txt')
+    origin_images = list(os.listdir(os.path.join(output_dir, 'images')))
+
     mvsnet_path = get_mvsnet_path()
     colmap2mvsnet_path = os.path.join(mvsnet_path, 'mvsnet/colmap2mvsnet.py')
     colmap2mvsnet_command_line = ['python', colmap2mvsnet_path,
@@ -40,6 +45,9 @@ def export_colmap_to_mvsnet(output_dir):
         colmap2mvsnet_command_line.append('--max_d')
         colmap2mvsnet_command_line.append(str(FLAGS.mvs_max_d))
     subprocess.run(colmap2mvsnet_command_line, check=True)
+    for image in origin_images:
+        os.remove(os.path.join(output_dir, 'images', image))
+
 
 
 def run_mvsnet_predict(output_dir):
@@ -54,7 +62,19 @@ def run_mvsnet_predict(output_dir):
                            '--ckpt_step', '150000']
 
     base_command = base_command + '"' + '" "'.join(mvsnet_command_line + get_mvsnet_options()) + '"'
-    subprocess.run(['bash', '-c', base_command], cwd=os.path.join(mvsnet_path, 'mvsnet'))
+    subprocess.run(['bash', '-c', base_command], cwd=os.path.join(mvsnet_path, 'mvsnet'), check=True)
+
+
+def run_mvsnet_fuse(output_dir):
+    mvsnet_path = get_mvsnet_path()
+    base_command = 'source ~/anaconda3/bin/activate mvsnet;'
+    mvsnet_fuse_command_line = ['python', os.path.join(mvsnet_path, 'mvsnet/depthfusion.py'),
+                           '--dense_folder', output_dir,
+                           '--fusibile_exe_path', get_fusibile_path(),
+                           '--prob_threshold', '0.3']
+
+    base_command = base_command + '"' + '" "'.join(mvsnet_fuse_command_line) + '"'
+    subprocess.run(['bash', '-c', base_command], cwd=os.path.join(mvsnet_path, 'mvsnet'), check=True)
 
 
 def run_rmvsnet_predict(output_dir):
@@ -68,4 +88,4 @@ def run_rmvsnet_predict(output_dir):
                            os.path.join(mvsnet_path, 'pretrain/tf_model_eth3d/GRU/model.ckpt'),
                            '--ckpt_step', '150000']
     base_command = base_command + '"' + '" "'.join(mvsnet_command_line + get_mvsnet_options()) + '"'
-    subprocess.run(['bash', '-c', base_command], cwd=os.path.join(mvsnet_path, 'mvsnet'))
+    subprocess.run(['bash', '-c', base_command], cwd=os.path.join(mvsnet_path, 'mvsnet'), check=True)

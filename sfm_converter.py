@@ -6,7 +6,7 @@ import sys
 import pathlib
 import subprocess
 
-from utils import InitLogging, LogThanExitIfFailed, GetFileFromBuildId
+from utils import InitLogging, LogThanExitIfFailed, GetFileFromBuildId, mvs_network_check
 from third_party.colmap.read_write_model import write_model, read_images_text, read_points3D_text, write_points3D_text
 from load_mve_sfm import load_mve_sfm, save_mve_sfm
 from common_options import GLOBAL_OPTIONS as FLAGS
@@ -244,9 +244,11 @@ if __name__ == '__main__':
     FLAGS.add_argument('images_dir', type=str, help='images directory')
     FLAGS.add_argument('output_dir', type=str, help='output directory')
     FLAGS.add_argument('--sfm', default='colmap', choices=['colmap', 'openmvg', 'theiasfm', 'mve'],
-                       help='sfm algorithm')
-    FLAGS.add_argument('--mvs', default='colmap', choices=['colmap', 'openmvs', 'pmvs', 'cmvs', 'mve'],
-                       help='mvs algorithm')
+                        help='sfm algorithm')
+    mvs_algorithm_list = ['colmap', 'openmvs', 'pmvs', 'cmvs', 'mve',
+                          'mvsnet', 'rmvsnet', 'pointmvsnet']
+    FLAGS.add_argument('--mvs', type=mvs_network_check, default='colmap', choices=mvs_algorithm_list,
+                        help='mvs algorithm')
     FLAGS.parse_args()
 
     sfm_convert_helper(FLAGS.sfm, FLAGS.mvs, FLAGS.input_dir, FLAGS.images_dir, FLAGS.output_dir)
