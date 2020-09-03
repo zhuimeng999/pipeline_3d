@@ -57,7 +57,7 @@ if __name__ == '__main__':
         if os.path.isdir(intermediate_work_dir) is False:
             os.mkdir(intermediate_work_dir)
 
-    advanced_work_dir = os.path.join(options.work_dir, 'intermediate')
+    advanced_work_dir = os.path.join(options.work_dir, 'advanced')
     if options.advanced_dir is not None:
         checkSceneExists(options.advanced_dir, SCENES['advanced'])
         if os.path.isdir(advanced_work_dir) is False:
@@ -67,8 +67,8 @@ if __name__ == '__main__':
         for scene_name in SCENES['intermediate']:
             reconstructionScene(os.path.join(options.intermediate_dir, scene_name), os.path.join(intermediate_work_dir, scene_name))
 
-    if options.intermediate_dir is not None:
-        for scene_name in SCENES['intermediate']:
-            reconstructionScene(os.path.join(options.intermediate_dir, scene_name), os.path.join(intermediate_work_dir, scene_name))
+    if options.advanced_dir is not None:
+        for scene_name in SCENES['advanced']:
+            reconstructionScene(os.path.join(options.advanced_dir, scene_name), os.path.join(advanced_work_dir, scene_name))
 
     logging.info('done')
