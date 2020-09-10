@@ -5,6 +5,7 @@ import os
 import logging
 from utils import InitLogging, LogThanExitIfFailed
 import subprocess
+import importlib.util
 
 SCENES = {
     'intermediate': ['Family', 'Francis', 'Horse', 'Lighthouse', 'M60', 'Panther', 'Playground', 'Train'],
@@ -30,6 +31,18 @@ def reconstructionScene(image_dir: str, work_dir: str):
 
     subprocess.run(colmap_command_line, check=True)
 
+
+def run_colmap_converter(image_dir, result_dir, log_output, script_dir):
+    conver_to_log_command_line = ['python', 'convert_to_logfile.py',
+                                  os.path.join(result_dir, 'sparse/0/camera.bin'),
+                                  log_output,
+                                  image_dir,
+                                  'COLMAP',
+                                  'jpg']
+    subprocess.run(conver_to_log_command_line, check=True,
+                   cwd=os.path.join(script_dir, 'TanksAndTemples/python_toolbox'))
+
+
 if __name__ == '__main__':
     InitLogging()
 
@@ -38,6 +51,8 @@ if __name__ == '__main__':
     parser.add_argument('--advanced_dir', type=str, default=None, help='advanced scene directory')
     parser.add_argument('--data_dir', type=str, default=None,
                         help='dataset directory, specail this for intermediate and advanced set evalution at same time')
+    parser.add_argument('--script_dir', type=str, default=None,
+                        help='convert_to_logfile.py')
     parser.add_argument('work_dir', type=str, help='workspace directory')
 
     options = parser.parse_args()
@@ -47,6 +62,14 @@ if __name__ == '__main__':
             options.intermediate_dir = os.path.join(options.data_dir, 'intermediate')
         if options.advanced_dir is None:
             options.advanced_dir = os.path.join(options.data_dir, 'advanced')
+    if options.script_dir is None:
+        options.script_dir = os.path.join(options.data_dir, '../')
+        LogThanExitIfFailed(os.path.isdir(options.script_dir),
+                            "you must provide the TanksAndTemples eval script directory")
+    # convert_colmap_spec = importlib.util.spec_from_file_location('convert_colmap', options.colmap_converter_path)
+    # convert_colmap = importlib.util.module_from_spec(convert_colmap_spec)
+    # convert_colmap_spec.loader.exec_module(convert_colmap)
+    # fun = getattr(convert_colmap, 'convert_COLMAP_to_log')
 
     LogThanExitIfFailed((options.intermediate_dir is not None) or (options.advanced_dir is not None),
                         "you must at least special one of [intermediate_dir, advanced_dir, data_dir]")
@@ -63,12 +86,30 @@ if __name__ == '__main__':
         if os.path.isdir(advanced_work_dir) is False:
             os.mkdir(advanced_work_dir)
 
+    submit_dir = os.path.join(options.work_dir, 'submit')
+    subprocess.run(['rm', '-rv', submit_dir], check=False)
+    os.mkdir(submit_dir)
+
     if options.intermediate_dir is not None:
         for scene_name in SCENES['intermediate']:
-            reconstructionScene(os.path.join(options.intermediate_dir, scene_name), os.path.join(intermediate_work_dir, scene_name))
+            reconstructionScene(os.path.join(options.intermediate_dir, scene_name),
+                                os.path.join(intermediate_work_dir, scene_name))
+            subprocess.run(['cp', '-v', os.path.join(intermediate_work_dir, scene_name, 'dense/0/fused.ply'),
+                            os.path.join(submit_dir, scene_name + '.ply')], check=True)
+            run_colmap_converter(os.path.join(options.intermediate_dir, scene_name),
+                                 os.path.join(intermediate_work_dir, scene_name),
+                                 os.path.join(submit_dir, scene_name + '.log'),
+                                 options.script_dir)
 
     if options.advanced_dir is not None:
         for scene_name in SCENES['advanced']:
-            reconstructionScene(os.path.join(options.advanced_dir, scene_name), os.path.join(advanced_work_dir, scene_name))
+            reconstructionScene(os.path.join(options.advanced_dir, scene_name),
+                                os.path.join(advanced_work_dir, scene_name))
+            subprocess.run(['cp', '-v', os.path.join(advanced_work_dir, scene_name, 'dense/0/fused.ply'),
+                            os.path.join(submit_dir, scene_name + '.ply')], check=True)
+            run_colmap_converter(os.path.join(options.advanced_dir, scene_name),
+                                 os.path.join(advanced_work_dir, scene_name),
+                                 os.path.join(submit_dir, scene_name + '.log'),
+                                 options.script_dir)
 
     logging.info('done')
