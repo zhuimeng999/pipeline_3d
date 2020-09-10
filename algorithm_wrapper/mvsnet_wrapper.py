@@ -5,7 +5,7 @@ import pathlib
 import logging
 import subprocess
 from third_party.colmap.read_write_model import read_model, write_model
-from common_options import GLOBAL_OPTIONS as FLAGS
+from pipeline.common_options import GLOBAL_OPTIONS as FLAGS
 
 
 def get_mvsnet_path() -> str:

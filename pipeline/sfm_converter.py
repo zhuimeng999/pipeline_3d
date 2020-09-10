@@ -6,10 +6,10 @@ import sys
 import pathlib
 import subprocess
 
-from utils import InitLogging, LogThanExitIfFailed, GetFileFromBuildId, mvs_network_check
+from pipeline.utils import InitLogging, GetFileFromBuildId, mvs_network_check
 from third_party.colmap.read_write_model import write_model, read_images_text, read_points3D_text, write_points3D_text
-from load_mve_sfm import load_mve_sfm, save_mve_sfm
-from common_options import GLOBAL_OPTIONS as FLAGS
+from pipeline.load_mve_sfm import load_mve_sfm, save_mve_sfm
+from pipeline.common_options import GLOBAL_OPTIONS as FLAGS
 from algorithm_wrapper.mvsnet_wrapper import export_colmap_to_mvsnet
 from algorithm_wrapper.pointmvsnet_wrapper import fix_mvsnet_to_pointmvsnet
 

@@ -3,9 +3,8 @@
 import argparse
 import os
 import logging
-from utils import InitLogging, LogThanExitIfFailed
+from pipeline.utils import InitLogging, LogThanExitIfFailed
 import subprocess
-import importlib.util
 
 SCENES = {
     'intermediate': ['Family', 'Francis', 'Horse', 'Lighthouse', 'M60', 'Panther', 'Playground', 'Train'],
@@ -63,7 +62,7 @@ if __name__ == '__main__':
         if options.advanced_dir is None:
             options.advanced_dir = os.path.join(options.data_dir, 'advanced')
     if options.script_dir is None:
-        options.script_dir = os.path.join(options.data_dir, '../')
+        options.script_dir = os.path.join(options.data_dir, '../../')
         LogThanExitIfFailed(os.path.isdir(options.script_dir),
                             "you must provide the TanksAndTemples eval script directory")
     # convert_colmap_spec = importlib.util.spec_from_file_location('convert_colmap', options.colmap_converter_path)

@@ -1,12 +1,11 @@
 # -*- coding: UTF-8 -*-
 
 import os
-import logging
 import numpy as np
 import struct
 import cv2
 
-from utils import LogThanExitIfFailed, InitLogging
+from pipeline.utils import LogThanExitIfFailed, InitLogging
 from third_party.colmap.read_write_model import Camera, Image, Point3D, rotmat2qvec, read_model
 
 

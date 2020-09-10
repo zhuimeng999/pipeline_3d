@@ -1,17 +1,16 @@
 # -*- coding: UTF-8 -*-
 
 import os
-import sys
 import logging
 import shutil
 
-from utils import SetupFreeGpu, InitLogging, mvs_network_check
-from sfm_run import sfm_run_helper
-from sfm_converter import sfm_convert_helper
-from mvs_run import mvs_run_helper
-from mvs_converter import mvs_convert_helper
-from fuse_run import fuse_run_helper
-from common_options import GLOBAL_OPTIONS as FLAGS
+from pipeline.utils import SetupFreeGpu, InitLogging, mvs_network_check
+from pipeline.sfm_run import sfm_run_helper
+from pipeline.sfm_converter import sfm_convert_helper
+from pipeline.mvs_run import mvs_run_helper
+from pipeline.mvs_converter import mvs_convert_helper
+from pipeline.fuse_run import fuse_run_helper
+from pipeline.common_options import GLOBAL_OPTIONS as FLAGS
 
 
 if __name__ == '__main__':

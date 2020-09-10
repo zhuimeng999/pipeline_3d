@@ -5,7 +5,7 @@
 """
 
 import subprocess
-from utils import SetupFreeGpu, InitLogging, LogThanExitIfFailed
+from pipeline.utils import SetupFreeGpu, InitLogging, LogThanExitIfFailed
 import os, sys
 import argparse
 import pathlib
@@ -71,7 +71,7 @@ def sfm_theiasfm(options, images_dir, work_dir):
             break
     assert isinstance(images, str)
 
-    with open('data/build_reconstruction_flags.txt', 'r') as f:
+    with open('../data/build_reconstruction_flags.txt', 'r') as f:
         content = f.read()
     theiasfm_flagfile = os.path.join(work_dir, 'theiasfm_flagfile.txt')
     matching_work_directory = os.path.join(work_dir, 'matching')

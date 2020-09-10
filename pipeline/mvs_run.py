@@ -1,12 +1,12 @@
 # -*- coding: UTF-8 -*-
 
 import os, sys
-import argparse, logging
-from utils import SetupFreeGpu, InitLogging, mvs_network_check
+import logging
+from pipeline.utils import SetupFreeGpu, InitLogging, mvs_network_check
 import subprocess
 from algorithm_wrapper.mvsnet_wrapper import run_mvsnet_predict, run_rmvsnet_predict
 from algorithm_wrapper.pointmvsnet_wrapper import run_pointmvsnet_predict
-from common_options import GLOBAL_OPTIONS as FLAGS
+from pipeline.common_options import GLOBAL_OPTIONS as FLAGS
 
 
 def mvs_colmap(mvs_work_dir):

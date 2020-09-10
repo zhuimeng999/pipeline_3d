@@ -2,11 +2,11 @@
 
 import os, sys
 import logging
-from utils import SetupFreeGpu, InitLogging, mvs_network_check
+from pipeline.utils import SetupFreeGpu, InitLogging, mvs_network_check
 import subprocess
 from algorithm_wrapper.mvsnet_wrapper import run_mvsnet_fuse
 from algorithm_wrapper.pointmvsnet_wrapper import run_pointmvsnet_fuse
-from common_options import GLOBAL_OPTIONS as FLAGS
+from pipeline.common_options import GLOBAL_OPTIONS as FLAGS
 
 
 def fuse_colmap(fuse_work_dir):

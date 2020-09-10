@@ -1,16 +1,12 @@
 # -*- coding: UTF-8 -*-
 
 import argparse
-import logging
-import os
-import pathlib
-import subprocess
 import numpy as np
 
-from sfm_run import get_sfm_parser
-from third_party.colmap.read_write_model import read_model, read_images_text, read_points3D_text, write_points3D_text
-from utils import InitLogging, LogThanExitIfFailed
-from sfm_converter import *
+from pipeline.sfm_run import get_sfm_parser
+from third_party.colmap.read_write_model import read_model
+from pipeline.utils import LogThanExitIfFailed
+from pipeline.sfm_converter import *
 
 
 class RadiaCamera:

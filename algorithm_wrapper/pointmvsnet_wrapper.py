@@ -7,7 +7,7 @@ import cv2
 import yaml
 import logging
 
-from common_options import GLOBAL_OPTIONS as FLAGS
+from pipeline.common_options import GLOBAL_OPTIONS as FLAGS
 from algorithm_wrapper.mvsnet_wrapper import get_fusibile_path
 
 

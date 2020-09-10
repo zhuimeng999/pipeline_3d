@@ -2,8 +2,8 @@
 
 import os
 import subprocess
-from utils import InitLogging
-from common_options import GLOBAL_OPTIONS as FLAGS
+from pipeline.utils import InitLogging
+from pipeline.common_options import GLOBAL_OPTIONS as FLAGS
 
 
 if __name__ == '__main__':
