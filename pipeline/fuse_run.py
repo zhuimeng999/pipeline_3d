@@ -66,4 +66,4 @@ if __name__ == '__main__':
 
     logging.info('select gpu %s', SetupFreeGpu(FLAGS.num_gpu))
 
-    fuse_run_helper(FLAGS.mvs, FLAGS.fuse_work_dir)
+    fuse_run_helper(FLAGS.fuse, FLAGS.fuse_work_dir)

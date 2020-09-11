@@ -7,7 +7,7 @@ import pathlib
 import subprocess
 
 from pipeline.utils import InitLogging, GetFileFromBuildId, mvs_network_check
-from third_party.colmap.read_write_model import write_model, read_images_text, read_points3D_text, write_points3D_text
+from third_party.colmap.read_write_model import write_model, read_model, Camera, Image, Point3D
 from pipeline.load_mve_sfm import load_mve_sfm, save_mve_sfm
 from pipeline.common_options import GLOBAL_OPTIONS as FLAGS
 from algorithm_wrapper.mvsnet_wrapper import export_colmap_to_mvsnet
@@ -36,25 +36,36 @@ def sfm_colmap2colmap(in_colmap_dir, in_images_dir, out_colmap_dir, build_id: in
 
 
 def fixed_openmvg_to_colmap_error(sfm_colmap_dir):
-    images = read_images_text(os.path.join(sfm_colmap_dir, 'images.txt'))
-    points3Ds = read_points3D_text(os.path.join(sfm_colmap_dir, 'points3D.txt'))
+    cameras, images, points3Ds = read_model(sfm_colmap_dir, '.txt')
 
     points3Ds_count = {}
     for track_id, track in points3Ds.items():
         points3Ds_count[track_id] = 0
 
+    new_cameres = {}
+    for camera_id, camera in cameras.items():
+        new_cameres[camera_id + 1] = Camera(id=camera.id + 1, model=camera.model,
+                                            width=camera.width,
+                                            height=camera.height,
+                                            params=camera.params)
+    new_images = {}
     for image_id, image in images.items():
         for i in range(len(image.point3D_ids)):
             pid = image.point3D_ids[i]
             track = points3Ds[pid]
             cnt = points3Ds_count[pid]
-            track.image_ids[cnt] = image_id
+            track.image_ids[cnt] = image_id + 1
             track.point2D_idxs[cnt] = i
             points3Ds_count[pid] = points3Ds_count[pid] + 1
+
+        new_images[image_id + 1] = Image(id=image.id + 1, qvec=image.qvec, tvec=image.tvec,
+                                         camera_id=image.camera_id + 1, name=image.name,
+                                         xys=image.xys,
+                                         point3D_ids=image.point3D_ids)
     for track_id, track in points3Ds.items():
         assert points3Ds_count[track_id] == len(track.point2D_idxs)
 
-    write_points3D_text(points3Ds, os.path.join(sfm_colmap_dir, 'points3D.txt'))
+    write_model(new_cameres, new_images, points3Ds, sfm_colmap_dir, '.txt')
 
 
 def sfm_mve2others(in_mve_dir, in_images_dir, out_others_dir, build_id: int = None, out_type='colmap'):
@@ -223,12 +234,34 @@ def sfm_colmap2mvsnet(in_colmap_dir, in_images_dir, out_mvsnet_dir, build_id: in
     export_colmap_to_mvsnet(out_mvsnet_dir)
 
 
+def sfm_openmvg2mvsnet(in_openmvg_dir, in_images_dir, out_mvsnet_dir, build_id: int = None):
+    distorted_convert_dir = os.path.join(out_mvsnet_dir, 'tmp')
+    tmp_work_dir = create_colmap_sparse_directory(distorted_convert_dir)
+    assert build_id is None
+    openmvg_to_colmap_command_line = ['openMVG_main_openMVG2Colmap',
+                                      '--sfmdata', os.path.join(in_openmvg_dir, 'sfm_data.bin'),
+                                      '--outdir', tmp_work_dir]
+    subprocess.run(openmvg_to_colmap_command_line, check=True)
+    logging.info(
+        'there are errors with openMVG_main_openMVG2Colmap, the 3D->2D map partialily wrong, we can fix this')
+    fixed_openmvg_to_colmap_error(sfm_colmap_dir=tmp_work_dir)
+    sfm_colmap2mvsnet(distorted_convert_dir, in_images_dir, out_mvsnet_dir, build_id)
+
+
 def sfm_colmap2rmvsnet(in_colmap_dir, in_images_dir, out_rmvsnet_dir, build_id: int = None):
     sfm_colmap2mvsnet(in_colmap_dir, in_images_dir, out_rmvsnet_dir, build_id)
 
 
+def sfm_openmvg2rmvsnet(in_openmvg_dir, in_images_dir, out_rmvsnet_dir, build_id: int = None):
+    sfm_openmvg2mvsnet(in_openmvg_dir, in_images_dir, out_rmvsnet_dir, build_id)
+
+
 def sfm_colmap2pointmvsnet(in_colmap_dir, in_images_dir, out_pointmvsnet_dir, build_id: int = None):
     sfm_colmap2mvsnet(in_colmap_dir, in_images_dir, out_pointmvsnet_dir, build_id)
+    fix_mvsnet_to_pointmvsnet(out_pointmvsnet_dir)
+
+def sfm_openmvg2pointmvsnet(in_openmvg_dir, in_images_dir, out_pointmvsnet_dir, build_id: int = None):
+    sfm_openmvg2mvsnet(in_openmvg_dir, in_images_dir, out_pointmvsnet_dir, build_id)
     fix_mvsnet_to_pointmvsnet(out_pointmvsnet_dir)
 
 
@@ -244,11 +277,11 @@ if __name__ == '__main__':
     FLAGS.add_argument('images_dir', type=str, help='images directory')
     FLAGS.add_argument('output_dir', type=str, help='output directory')
     FLAGS.add_argument('--sfm', default='colmap', choices=['colmap', 'openmvg', 'theiasfm', 'mve'],
-                        help='sfm algorithm')
+                       help='sfm algorithm')
     mvs_algorithm_list = ['colmap', 'openmvs', 'pmvs', 'cmvs', 'mve',
                           'mvsnet', 'rmvsnet', 'pointmvsnet']
     FLAGS.add_argument('--mvs', type=mvs_network_check, default='colmap', choices=mvs_algorithm_list,
-                        help='mvs algorithm')
+                       help='mvs algorithm')
     FLAGS.parse_args()
 
     sfm_convert_helper(FLAGS.sfm, FLAGS.mvs, FLAGS.input_dir, FLAGS.images_dir, FLAGS.output_dir)

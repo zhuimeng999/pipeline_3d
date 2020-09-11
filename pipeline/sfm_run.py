@@ -10,22 +10,23 @@ import os, sys
 import argparse
 import pathlib
 import logging
+from pipeline.common_options import GLOBAL_OPTIONS as FLAGS
 
 
-def sfm_colmap(options, images_dir, work_dir):
-    LogThanExitIfFailed(options.sfm_global is False,
+def sfm_colmap(images_dir, work_dir):
+    LogThanExitIfFailed(FLAGS.sfm_global is False,
                         'colmap only support INCREMENTAL sfm reconstruction')
     colmap_command_line = ['colmap', 'automatic_reconstructor',
                            '--workspace_path', work_dir,
                            '--image_path', images_dir,
                            '--sparse', str(1),
                            '--dense', str(0),
-                           '--num_threads', str(options.num_cpu)]
+                           '--num_threads', str(FLAGS.num_cpu)]
     logging.info('run colmap with args:\n %s', colmap_command_line)
     subprocess.run(colmap_command_line, check=True)
 
 
-def sfm_openmvg(options, images_dir, work_dir):
+def sfm_openmvg(images_dir, work_dir):
     sensor_db = 'data/sensor_width_camera_database.txt'
 
     image_listing_command_line = ['openMVG_main_SfMInit_ImageListing',
@@ -48,7 +49,7 @@ def sfm_openmvg(options, images_dir, work_dir):
                                    '--out_dir', matches_dir]
     subprocess.run(ComputeMatches_command_line, check=True)
 
-    if options.sfm_global is False:
+    if FLAGS.sfm_global is False:
         IncrementalSfM_command_line = ['openMVG_main_IncrementalSfM',
                                        '--input_file', os.path.join(work_dir, 'sfm_data.json'),
                                        '--matchdir', matches_dir,
@@ -71,7 +72,7 @@ def sfm_theiasfm(options, images_dir, work_dir):
             break
     assert isinstance(images, str)
 
-    with open('../data/build_reconstruction_flags.txt', 'r') as f:
+    with open('data/build_reconstruction_flags.txt', 'r') as f:
         content = f.read()
     theiasfm_flagfile = os.path.join(work_dir, 'theiasfm_flagfile.txt')
     matching_work_directory = os.path.join(work_dir, 'matching')
@@ -101,10 +102,10 @@ def sfm_mve(options, images_dir, work_dir):
     subprocess.run(sfmrecon_command_line, check=True)
 
 
-def sfm_run_helper(alg, options, images_dir, sfm_work_dir):
+def sfm_run_helper(alg, images_dir, sfm_work_dir):
     this_module = sys.modules[__name__]
     sfm_run_fun = getattr(this_module, 'sfm_' + alg)
-    sfm_run_fun(options, images_dir, sfm_work_dir)
+    sfm_run_fun(images_dir, sfm_work_dir)
 
 def get_sfm_parser():
     parser = argparse.ArgumentParser()

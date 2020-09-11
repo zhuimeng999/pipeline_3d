@@ -14,6 +14,9 @@ def mvs_colmap2colmap(in_colmap_dir, out_colmap_dir, build_id: int = None):
 def mvs_mvsnet2mvsnet(in_mvsnet_dir, out_mvsnet_dir, build_id: int = None):
     os.symlink(in_mvsnet_dir, os.path.join(out_mvsnet_dir, 'mvs_result'))
 
+def mvs_rmvsnet2mvsnet(in_rmvsnet_dir, out_mvsnet_dir, build_id: int = None):
+    os.symlink(in_rmvsnet_dir, os.path.join(out_mvsnet_dir, 'mvs_result'))
+
 
 def mvs_pointmvsnet2pointmvsnet(in_mvsnet_dir, out_mvsnet_dir, build_id: int = None):
     os.symlink(os.path.join(in_mvsnet_dir, 'Eval'), os.path.join(out_mvsnet_dir, 'mvs_result'))

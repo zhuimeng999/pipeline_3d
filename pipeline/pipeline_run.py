@@ -56,7 +56,7 @@ if __name__ == '__main__':
         mvs_run_helper(FLAGS.mvs, mvs_work_dir)
         force_run = force_run + 1
 
-    fuse_name = 'fuse_' + FLAGS.mvs + '2' + FLAGS.fuse
+    fuse_name = 'fuse_' + FLAGS.sfm + '2' + FLAGS.mvs + '2' + FLAGS.fuse
     fuse_work_dir = os.path.join(FLAGS.workspace_dir, fuse_name)
     if (os.path.exists(fuse_work_dir) is False) or (force_run > 0):
         shutil.rmtree(fuse_work_dir, ignore_errors=True)
