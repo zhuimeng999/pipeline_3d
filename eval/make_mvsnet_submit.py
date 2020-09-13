@@ -1,121 +1,100 @@
 # -*- coding: UTF-8 -*-
 
-import argparse
 import os
 import logging
-from pipeline.utils import InitLogging, LogThanExitIfFailed
+import pathlib
 import subprocess
 
-SCENES = {
-    'intermediate': ['Family', 'Francis', 'Horse', 'Lighthouse', 'M60', 'Panther', 'Playground', 'Train'],
-    'advanced': ['Auditorium', 'Ballroom', 'Courtroom', 'Museum', 'Palace', 'Temple']
-}
+from pipeline.utils import SetupFreeGpu, InitLogging, mvs_network_check, LogThanExitIfFailed
+from pipeline.sfm_run import sfm_run_helper
+from pipeline.sfm_converter import sfm_convert_helper
+from pipeline.mvs_run import mvs_run_helper
+from pipeline.mvs_converter import mvs_convert_helper
+from pipeline.fuse_run import fuse_run_helper
+from pipeline.common_options import GLOBAL_OPTIONS as FLAGS
 
 
-def checkSceneExists(scene_dir: str, scene_names: list):
-    for scene_name in scene_names:
-        scene_path = os.path.join(scene_dir, scene_name)
-        LogThanExitIfFailed(os.path.isdir(scene_path), 'scene ' + scene_path + ' is not exists')
+class TanksAndTemplesDataset:
+    SCENES = {
+        'intermediate': ['Family', 'Francis', 'Horse', 'Lighthouse', 'M60', 'Panther', 'Playground', 'Train'],
+        'advanced': ['Auditorium', 'Ballroom', 'Courtroom', 'Museum', 'Palace', 'Temple']
+    }
 
+    def __init__(self, scene_dir, sfm_dir, mvs_dir, fuse_dir):
+        self.scene_dir = scene_dir
+        self.sfm_dir = sfm_dir
+        self.mvs_dir = mvs_dir
+        self.fuse_dir = fuse_dir
 
-def reconstructionScene(image_dir: str, work_dir: str):
-    if os.path.isdir(work_dir) is False:
-        os.mkdir(work_dir)
+        sfm_work_infos = []
+        mvs_work_infos = []
+        fuse_work_infos = []
+        for k, v in self.SCENES.items():
+            for scene_name in v:
+                scene_path = os.path.join(self.scene_dir, k, scene_name)
+                sfm_path = os.path.join(self.sfm_dir, k, scene_name)
+                mvs_path = os.path.join(self.mvs_dir, k, scene_name)
+                fuse_path = os.path.join(self.fuse_dir, k, scene_name)
+                LogThanExitIfFailed(os.path.isdir(scene_path), 'scene ' + scene_path + ' is not exists')
+                sfm_work_infos.append((scene_path, sfm_path))
+                mvs_work_infos.append((scene_path, sfm_path, mvs_path))
+                fuse_work_infos.append((mvs_path, fuse_path))
 
-    colmap_command_line = [
-        'python', os.path.join(os.path.dirname(__file__), '../pipeline/pipeline_run.py'),
-        image_dir, work_dir,
-        '--sfm', 'openmvg',
-        '--mvs', 'mvsnet',
-        '--fuse', 'mvsnet',
-        '--mvs_max_w', '640',
-        '--mvs_max_h', '512',
-        '--mvs_max_d', '128'
-    ]
+        self.sfm_work_infos = sfm_work_infos
+        self.mvs_work_infos = mvs_work_infos
+        self.fuse_work_infos = fuse_work_infos
 
-    env = os.environ.copy()
-    env['PYTHONPATH'] = os.path.normpath(os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))) + ':' + env['PYTHONPATH']
-    subprocess.run(colmap_command_line, check=True, env=env)
+    def get_sfm_infos(self):
+        return self.sfm_work_infos
 
+    def get_mvs_infos(self):
+        return self.mvs_work_infos
 
-def run_colmap_converter(image_dir, result_dir, log_output, script_dir):
-    conver_to_log_command_line = ['python', 'convert_to_logfile.py',
-                                  os.path.join(result_dir, 'sparse/0/camera.bin'),
-                                  log_output,
-                                  image_dir,
-                                  'COLMAP',
-                                  'jpg']
-    subprocess.run(conver_to_log_command_line, check=True,
-                   cwd=os.path.join(script_dir, 'TanksAndTemples/python_toolbox'))
+    def get_fuse_infos(self):
+        return self.fuse_work_infos
 
 
 if __name__ == '__main__':
     InitLogging()
 
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--intermediate_dir', type=str, default=None, help='intermedia scene directory')
-    parser.add_argument('--advanced_dir', type=str, default=None, help='advanced scene directory')
-    parser.add_argument('--data_dir', type=str, default=None,
-                        help='dataset directory, specail this for intermediate and advanced set evalution at same time')
-    parser.add_argument('--script_dir', type=str, default=None,
-                        help='convert_to_logfile.py')
-    parser.add_argument('work_dir', type=str, help='workspace directory')
+    FLAGS.add_argument('data_dir', type=str, default=None,
+                       help='dataset directory, specail this for intermediate and advanced set evalution at same time')
+    FLAGS.add_argument('sfm_dir', type=str, help='workspace directory')
+    FLAGS.add_argument('mvs_dir', type=str, help='working directory')
+    FLAGS.add_argument('fuse_dir', type=str, help='working directory')
 
-    options = parser.parse_args()
+    FLAGS.add_argument('--script_dir', type=str, default=None,
+                       help='convert_to_logfile.py')
+    FLAGS.add_argument('--sfm', default='colmap', choices=['colmap', 'openmvg', 'theiasfm', 'mve'],
+                       help='sfm algorithm')
 
-    if options.data_dir:
-        if options.intermediate_dir is None:
-            options.intermediate_dir = os.path.join(options.data_dir, 'intermediate')
-        if options.advanced_dir is None:
-            options.advanced_dir = os.path.join(options.data_dir, 'advanced')
-    if options.script_dir is None:
-        options.script_dir = os.path.join(options.data_dir, '../../')
-        LogThanExitIfFailed(os.path.isdir(options.script_dir),
+    mvs_algorithm_list = ['colmap', 'openmvs', 'pmvs', 'cmvs', 'mve',
+                          'mvsnet', 'rmvsnet', 'pointmvsnet']
+    FLAGS.add_argument('--mvs', type=mvs_network_check, default='colmap', choices=mvs_algorithm_list,
+                       help='mvs algorithm')
+    FLAGS.add_argument('--fuse', type=mvs_network_check, default='colmap', choices=mvs_algorithm_list,
+                       help='fuse algorithm')
+
+    FLAGS.parse_args()
+
+    logging.info('select gpu %s', SetupFreeGpu(FLAGS.num_gpu))
+
+    if FLAGS.script_dir is None:
+        FLAGS.script_dir = os.path.join(FLAGS.data_dir, '../../')
+        LogThanExitIfFailed(os.path.isdir(FLAGS.script_dir),
                             "you must provide the TanksAndTemples eval script directory")
-    # convert_colmap_spec = importlib.util.spec_from_file_location('convert_colmap', options.colmap_converter_path)
-    # convert_colmap = importlib.util.module_from_spec(convert_colmap_spec)
-    # convert_colmap_spec.loader.exec_module(convert_colmap)
-    # fun = getattr(convert_colmap, 'convert_COLMAP_to_log')
 
-    LogThanExitIfFailed((options.intermediate_dir is not None) or (options.advanced_dir is not None),
-                        "you must at least special one of [intermediate_dir, advanced_dir, data_dir]")
+    ds = TanksAndTemplesDataset(FLAGS.data_dir, FLAGS.sfm_dir, FLAGS.mvs_dir, FLAGS.fuse_dir)
+    for images_dir, sfm_work_dir in ds.get_sfm_infos():
+        pathlib.Path(sfm_work_dir).mkdir(parents=True)
+        sfm_run_helper(FLAGS.sfm, images_dir, sfm_work_dir)
 
-    intermediate_work_dir = os.path.join(options.work_dir, 'intermediate')
-    if options.intermediate_dir is not None:
-        checkSceneExists(options.intermediate_dir, SCENES['intermediate'])
-        if os.path.isdir(intermediate_work_dir) is False:
-            os.mkdir(intermediate_work_dir)
+    for images_dir, sfm_work_dir, mvs_work_dir in ds.get_mvs_infos():
+        pathlib.Path(mvs_work_dir).mkdir(parents=True)
+        sfm_convert_helper(FLAGS.sfm, FLAGS.mvs, sfm_work_dir, images_dir, mvs_work_dir)
+        mvs_run_helper(FLAGS.mvs, mvs_work_dir)
 
-    advanced_work_dir = os.path.join(options.work_dir, 'advanced')
-    if options.advanced_dir is not None:
-        checkSceneExists(options.advanced_dir, SCENES['advanced'])
-        if os.path.isdir(advanced_work_dir) is False:
-            os.mkdir(advanced_work_dir)
-
-    submit_dir = os.path.join(options.work_dir, 'submit')
-    subprocess.run(['rm', '-rv', submit_dir], check=False)
-    os.mkdir(submit_dir)
-
-    if options.intermediate_dir is not None:
-        for scene_name in SCENES['intermediate']:
-            reconstructionScene(os.path.join(options.intermediate_dir, scene_name),
-                                os.path.join(intermediate_work_dir, scene_name))
-            subprocess.run(['cp', '-v', os.path.join(intermediate_work_dir, scene_name, 'dense/0/fused.ply'),
-                            os.path.join(submit_dir, scene_name + '.ply')], check=True)
-            run_colmap_converter(os.path.join(options.intermediate_dir, scene_name),
-                                 os.path.join(intermediate_work_dir, scene_name),
-                                 os.path.join(submit_dir, scene_name + '.log'),
-                                 options.script_dir)
-
-    if options.advanced_dir is not None:
-        for scene_name in SCENES['advanced']:
-            reconstructionScene(os.path.join(options.advanced_dir, scene_name),
-                                os.path.join(advanced_work_dir, scene_name))
-            subprocess.run(['cp', '-v', os.path.join(advanced_work_dir, scene_name, 'dense/0/fused.ply'),
-                            os.path.join(submit_dir, scene_name + '.ply')], check=True)
-            run_colmap_converter(os.path.join(options.advanced_dir, scene_name),
-                                 os.path.join(advanced_work_dir, scene_name),
-                                 os.path.join(submit_dir, scene_name + '.log'),
-                                 options.script_dir)
-
-    logging.info('done')
+    for mvs_work_dir, fuse_work_dir in ds.get_fuse_infos():
+        pathlib.Path(fuse_work_dir).mkdir(parents=True)
+        mvs_convert_helper(FLAGS.mvs, FLAGS.fuse, mvs_work_dir, fuse_work_dir)
+        mvs_run_helper(FLAGS.fuse, fuse_work_dir)

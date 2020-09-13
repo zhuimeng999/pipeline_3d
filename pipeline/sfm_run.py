@@ -27,6 +27,9 @@ def sfm_colmap(images_dir, work_dir):
 
 
 def sfm_openmvg(images_dir, work_dir):
+    if os.path.isfile(os.path.join(work_dir, 'sfm_data.bin')):
+        logging.warning('sfm_data.bin already exsits, skip openmvg run in directory %s', work_dir)
+        return
     sensor_db = 'data/sensor_width_camera_database.txt'
 
     image_listing_command_line = ['openMVG_main_SfMInit_ImageListing',
