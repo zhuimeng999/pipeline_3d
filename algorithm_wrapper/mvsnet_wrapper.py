@@ -30,6 +30,9 @@ def get_mvsnet_options():
     if FLAGS.mvs_max_d is not None:
         mvsnet_options.append('--max_d')
         mvsnet_options.append(str(FLAGS.mvs_max_d))
+    if FLAGS.mvs_view_num is not None:
+        mvsnet_options.append('--view_num')
+        mvsnet_options.append(str(FLAGS.mvs_view_num))
     return mvsnet_options
 
 
@@ -46,6 +49,7 @@ def export_colmap_to_mvsnet(output_dir):
     if FLAGS.mvs_max_d is not None:
         colmap2mvsnet_command_line.append('--max_d')
         colmap2mvsnet_command_line.append(str(FLAGS.mvs_max_d))
+    logging.info('run colmap2mvsnet with command: %s', ' '.join(colmap2mvsnet_command_line))
     subprocess.run(colmap2mvsnet_command_line, check=True)
     for image in origin_images:
         os.remove(os.path.join(output_dir, 'images', image))
@@ -64,6 +68,7 @@ def run_mvsnet_predict(output_dir):
                            '--ckpt_step', '150000']
 
     base_command = base_command + '"' + '" "'.join(mvsnet_command_line + get_mvsnet_options()) + '"'
+    logging.info('run mvsnet with command: %s', base_command)
     subprocess.run(['bash', '-c', base_command], cwd=os.path.join(mvsnet_path, 'mvsnet'), check=True)
 
 
@@ -96,4 +101,5 @@ def run_rmvsnet_predict(output_dir):
                            os.path.join(mvsnet_path, 'pretrain/tf_model_eth3d/GRU/model.ckpt'),
                            '--ckpt_step', '150000']
     base_command = base_command + '"' + '" "'.join(mvsnet_command_line + get_mvsnet_options()) + '"'
+    logging.info('run rmvsnet with command: %s', base_command)
     subprocess.run(['bash', '-c', base_command], cwd=os.path.join(mvsnet_path, 'mvsnet'), check=True)

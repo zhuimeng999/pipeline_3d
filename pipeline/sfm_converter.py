@@ -235,6 +235,9 @@ def sfm_colmap2mvsnet(in_colmap_dir, in_images_dir, out_mvsnet_dir, build_id: in
 
 
 def sfm_openmvg2mvsnet(in_openmvg_dir, in_images_dir, out_mvsnet_dir, build_id: int = None):
+    if os.path.isfile(os.path.join(out_mvsnet_dir, 'pair.txt')):
+        logging.warning('pair.txt already exist in folder %s, skip convert step',out_mvsnet_dir)
+        return
     distorted_convert_dir = os.path.join(out_mvsnet_dir, 'tmp')
     tmp_work_dir = create_colmap_sparse_directory(distorted_convert_dir)
     assert build_id is None

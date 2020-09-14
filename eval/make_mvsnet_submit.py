@@ -54,6 +54,42 @@ class TanksAndTemplesDataset:
         return self.fuse_work_infos
 
 
+class TanksAndTemplesTrainDataset:
+    SCENES = []
+
+    def __init__(self, scene_dir, sfm_dir, mvs_dir, fuse_dir):
+        self.scene_dir = scene_dir
+        self.sfm_dir = sfm_dir
+        self.mvs_dir = mvs_dir
+        self.fuse_dir = fuse_dir
+
+        sfm_work_infos = []
+        mvs_work_infos = []
+        fuse_work_infos = []
+        for scene_name in self.SCENES:
+            scene_path = os.path.join(self.scene_dir, scene_name)
+            sfm_path = os.path.join(self.sfm_dir, scene_name)
+            mvs_path = os.path.join(self.mvs_dir, scene_name)
+            fuse_path = os.path.join(self.fuse_dir, scene_name)
+            LogThanExitIfFailed(os.path.isdir(scene_path), 'scene ' + scene_path + ' is not exists')
+            sfm_work_infos.append((scene_path, sfm_path))
+            mvs_work_infos.append((scene_path, sfm_path, mvs_path))
+            fuse_work_infos.append((mvs_path, fuse_path))
+
+        self.sfm_work_infos = sfm_work_infos
+        self.mvs_work_infos = mvs_work_infos
+        self.fuse_work_infos = fuse_work_infos
+
+    def get_sfm_infos(self):
+        return self.sfm_work_infos
+
+    def get_mvs_infos(self):
+        return self.mvs_work_infos
+
+    def get_fuse_infos(self):
+        return self.fuse_work_infos
+
+
 if __name__ == '__main__':
     InitLogging()
 
@@ -79,6 +115,14 @@ if __name__ == '__main__':
 
     logging.info('select gpu %s', SetupFreeGpu(FLAGS.num_gpu))
 
+    if FLAGS.mvs in ['mvsnet', 'rmvsnet']:
+        if FLAGS.mvs_max_w is None:
+            FLAGS.mvs_max_w = 1920
+        if FLAGS.mvs_max_h is None:
+            FLAGS.mvs_max_h = 1056
+        if FLAGS.mvs_max_d is None:
+            FLAGS.mvs_max_d = 128 if FLAGS.mvs == 'mvsnet' else 192
+
     if FLAGS.script_dir is None:
         FLAGS.script_dir = os.path.join(FLAGS.data_dir, '../../')
         LogThanExitIfFailed(os.path.isdir(FLAGS.script_dir),
@@ -86,15 +130,15 @@ if __name__ == '__main__':
 
     ds = TanksAndTemplesDataset(FLAGS.data_dir, FLAGS.sfm_dir, FLAGS.mvs_dir, FLAGS.fuse_dir)
     for images_dir, sfm_work_dir in ds.get_sfm_infos():
-        pathlib.Path(sfm_work_dir).mkdir(parents=True)
+        pathlib.Path(sfm_work_dir).mkdir(parents=True, exist_ok=True)
         sfm_run_helper(FLAGS.sfm, images_dir, sfm_work_dir)
 
     for images_dir, sfm_work_dir, mvs_work_dir in ds.get_mvs_infos():
-        pathlib.Path(mvs_work_dir).mkdir(parents=True)
+        pathlib.Path(mvs_work_dir).mkdir(parents=True, exist_ok=True)
         sfm_convert_helper(FLAGS.sfm, FLAGS.mvs, sfm_work_dir, images_dir, mvs_work_dir)
         mvs_run_helper(FLAGS.mvs, mvs_work_dir)
 
     for mvs_work_dir, fuse_work_dir in ds.get_fuse_infos():
-        pathlib.Path(fuse_work_dir).mkdir(parents=True)
+        pathlib.Path(fuse_work_dir).mkdir(parents=True, exist_ok=True)
         mvs_convert_helper(FLAGS.mvs, FLAGS.fuse, mvs_work_dir, fuse_work_dir)
-        mvs_run_helper(FLAGS.fuse, fuse_work_dir)
+        fuse_run_helper(FLAGS.fuse, fuse_work_dir)

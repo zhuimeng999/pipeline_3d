@@ -46,9 +46,15 @@ def mvs_pointmvsnet(mvs_work_dir):
 
 
 def mvs_run_helper(alg, mvs_work_dir):
+    DONE = os.path.join(mvs_work_dir, 'DONE')
+    if os.path.isfile(DONE):
+        logging.info('step mvs for %s in directpry %s already done, skipped', alg, mvs_work_dir)
+        return
     this_module = sys.modules[__name__]
     mvs_run_fun = getattr(this_module, 'mvs_' + alg)
     mvs_run_fun(mvs_work_dir)
+    with open(DONE, 'w') as f:
+        f.write(sys.argv)
 
 
 if __name__ == '__main__':
