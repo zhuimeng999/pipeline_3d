@@ -43,6 +43,8 @@ def fuse_pointmvsnet(fuse_work_dir):
 
 
 def fuse_run_helper(alg, fuse_work_dir):
+    if os.path.isfile(os.path.join(fuse_work_dir, alg + '_fused.ply')):
+        logging.warning('%s already exist, skip fuse', os.path.join(fuse_work_dir, alg + 'fused.ply'))
     this_module = sys.modules[__name__]
     mvs_run_fun = getattr(this_module, 'fuse_' + alg)
     mvs_run_fun(fuse_work_dir)

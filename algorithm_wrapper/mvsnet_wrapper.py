@@ -87,7 +87,7 @@ def run_mvsnet_fuse(output_dir):
     if len(pointcloud_path) != 1:
         logging.critical('error %s', pointcloud_path)
         exit(1)
-    os.rename(pointcloud_path[0].as_posix(), os.path.join(output_dir, 'pointcloud_mvsnet.ply'))
+    os.rename(pointcloud_path[0].as_posix(), os.path.join(output_dir, 'mvsnet_fused.ply'))
 
 
 def run_rmvsnet_predict(output_dir):
