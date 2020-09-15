@@ -54,7 +54,7 @@ def mvs_run_helper(alg, mvs_work_dir):
     mvs_run_fun = getattr(this_module, 'mvs_' + alg)
     mvs_run_fun(mvs_work_dir)
     with open(DONE, 'w') as f:
-        f.write(sys.argv)
+        f.write(' '.join(sys.argv))
 
 
 if __name__ == '__main__':
