@@ -13,6 +13,7 @@ class GlobalOptionsStorage:
         parser.add_argument('--mvs_max_h', type=int, default=None, help='max height to mvs input')
         parser.add_argument('--mvs_max_d', type=int, default=None, help='max depth to mvs input')
         parser.add_argument('--mvs_view_num', type=int, default=None, help='view number used to estimate depth map')
+        parser.add_argument('--fuse_prob_threshold', type=int, default=None, help='prob threshold for fuse')
         self.parser = parser
         self.options = None
 

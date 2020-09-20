@@ -64,7 +64,7 @@ def run_mvsnet_predict(output_dir):
                            '--regularization', '3DCNNs',
                            '--interval_scale', '1.06',
                            '--pretrained_model_ckpt_path',
-                           os.path.join(mvsnet_path, 'pretrain/tf_model_eth3d/3DCNNs/model.ckpt'),
+                           os.path.join(mvsnet_path, 'pretrain/tf_model_blendedmvs/3DCNNs/model.ckpt'),
                            '--ckpt_step', '150000']
 
     base_command = base_command + '"' + '" "'.join(mvsnet_command_line + get_mvsnet_options()) + '"'
@@ -77,17 +77,22 @@ def run_mvsnet_fuse(output_dir):
     base_command = 'source ~/anaconda3/bin/activate mvsnet;'
     mvsnet_fuse_command_line = ['python', os.path.join(mvsnet_path, 'mvsnet/depthfusion.py'),
                            '--dense_folder', os.path.join(output_dir, 'mvs_result'),
-                           '--fusibile_exe_path', get_fusibile_path(),
-                           '--prob_threshold', '0.3']
+                           '--fusibile_exe_path', get_fusibile_path()]
+    mvsnet_fuse_command_line.append('--prob_threshold')
+    mvsnet_fuse_command_line.append(str(FLAGS.fuse_prob_threshold or (0.8 if FLAGS.mvs == 'mvsnet' else 0.3)))
 
     base_command = base_command + '"' + '" "'.join(mvsnet_fuse_command_line) + '"'
     subprocess.run(['bash', '-c', base_command], cwd=os.path.join(mvsnet_path, 'mvsnet'), check=True)
-    os.rename(os.path.join(output_dir, 'mvs_result/points_mvsnet'), os.path.join(output_dir, 'fused'))
-    pointcloud_path = list(pathlib.Path(os.path.join(output_dir, 'fused')).glob('**/*.ply'))
+    subprocess.run(['rm', '-rf', os.path.join(output_dir, 'fused')], check=False)
+    pointcloud_path = list(pathlib.Path(os.path.join(output_dir, 'mvs_result/points_mvsnet')).glob('**/*.ply'))
     if len(pointcloud_path) != 1:
         logging.critical('error %s', pointcloud_path)
         exit(1)
-    os.rename(pointcloud_path[0].as_posix(), os.path.join(output_dir, 'mvsnet_fused.ply'))
+    new_fused = pathlib.Path(os.path.join(output_dir, 'mvsnet_fused.ply'))
+    # if new_fused.is_file():
+    #     new_fused.unlink()
+    pointcloud_path[0].rename(new_fused)
+    os.rename(os.path.join(output_dir, 'mvs_result/points_mvsnet'), os.path.join(output_dir, 'fused'))
 
 
 def run_rmvsnet_predict(output_dir):
@@ -98,7 +103,7 @@ def run_rmvsnet_predict(output_dir):
                            '--regularization', 'GRU',
                            '--interval_scale', '0.8',
                            '--pretrained_model_ckpt_path',
-                           os.path.join(mvsnet_path, 'pretrain/tf_model_eth3d/GRU/model.ckpt'),
+                           os.path.join(mvsnet_path, 'pretrain/tf_model_blendedmvs/GRU/model.ckpt'),
                            '--ckpt_step', '150000']
     base_command = base_command + '"' + '" "'.join(mvsnet_command_line + get_mvsnet_options()) + '"'
     logging.info('run rmvsnet with command: %s', base_command)
