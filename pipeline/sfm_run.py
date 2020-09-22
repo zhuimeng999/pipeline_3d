@@ -14,6 +14,14 @@ from pipeline.common_options import GLOBAL_OPTIONS as FLAGS
 
 
 def sfm_colmap(images_dir, work_dir):
+    '''
+    for fast https://github.com/colmap/colmap/issues/116 :
+    --Mapper.ba_global_images_ratio 1.2
+    --Mapper.ba_global_points_ratio 1.2
+    --Mapper.ba_global_max_num_iterations 20
+    --Mapper.ba_global_max_refinement 3
+    --Mapper.ba_global_points_freq 200000
+    '''
     LogThanExitIfFailed(FLAGS.sfm_global is False,
                         'colmap only support INCREMENTAL sfm reconstruction')
     colmap_command_line = ['colmap', 'automatic_reconstructor',
