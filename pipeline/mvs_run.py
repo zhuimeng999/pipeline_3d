@@ -45,6 +45,15 @@ def mvs_pointmvsnet(mvs_work_dir):
     run_pointmvsnet_predict(mvs_work_dir)
 
 
+def mvs_esmnet(mvs_work_dir):
+    esmnet_path = os.path.normpath(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../ESMNet')))
+    cl = ['python', os.path.join(esmnet_path, 'old/train_keras.py'),
+          '--data_folder', mvs_work_dir,
+          '--model_name', FLAGS.submodel_name,
+          '--use_ckpt', FLAGS.mvs_use_ckpt]
+    subprocess.run(cl, check=True)
+
+
 def mvs_run_helper(alg, mvs_work_dir):
     DONE = os.path.join(mvs_work_dir, 'DONE')
     if os.path.isfile(DONE):
@@ -62,12 +71,12 @@ if __name__ == '__main__':
 
     FLAGS.add_argument('mvs_work_dir', type=str, help='working directory')
     FLAGS.add_argument('--sfm', default='colmap', choices=['colmap', 'openmvg', 'theiasfm', 'mve'],
-                        help='sfm algorithm')
+                       help='sfm algorithm')
 
     mvs_algorithm_list = ['colmap', 'openmvs', 'pmvs', 'cmvs', 'mve',
                           'mvsnet', 'rmvsnet', 'pointmvsnet']
     FLAGS.add_argument('--mvs', type=mvs_network_check, default='colmap', choices=mvs_algorithm_list,
-                        help='mvs algorithm')
+                       help='mvs algorithm')
 
     FLAGS.parse_args()
 

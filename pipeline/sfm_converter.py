@@ -223,6 +223,9 @@ def sfm_mve2mve(in_mve_dir, in_images_dir, out_mve_dir, build_id: int = None):
 
 
 def sfm_colmap2mvsnet(in_colmap_dir, in_images_dir, out_mvsnet_dir, build_id: int = None):
+    if os.path.isfile(os.path.join(out_mvsnet_dir, 'pair.txt')):
+        logging.warning('pair.txt already exist in folder %s, skip convert step',out_mvsnet_dir)
+        return
     select_dir = GetFileFromBuildId(os.path.join(in_colmap_dir, 'sparse'), "*", build_id)
     colmap_undistored_command_line = ['colmap', 'image_undistorter',
                                       '--image_path', in_images_dir,

@@ -15,6 +15,7 @@ def get_mvsnet_path() -> str:
     else:
         return ''
 
+
 def get_fusibile_path() -> str:
     return os.path.join(get_mvsnet_path(), 'fusibile/fusibile')
 
@@ -40,7 +41,9 @@ def export_colmap_to_mvsnet(output_dir):
     if os.path.exists(os.path.join(output_dir, 'sparse/cameras.txt')) is False:
         sparse_dir = os.path.join(output_dir, 'sparse')
         write_model(*read_model(sparse_dir, '.bin'), sparse_dir, '.txt')
-    origin_images = list(os.listdir(os.path.join(output_dir, 'images')))
+    exlude_images = list(pathlib.Path(os.path.join(output_dir, 'images')).iterdir())
+    for image in exlude_images:
+        assert len(image.stem) != 8
 
     mvsnet_path = get_mvsnet_path()
     colmap2mvsnet_path = os.path.join(mvsnet_path, 'mvsnet/colmap2mvsnet.py')
@@ -51,9 +54,8 @@ def export_colmap_to_mvsnet(output_dir):
         colmap2mvsnet_command_line.append(str(FLAGS.mvs_max_d))
     logging.info('run colmap2mvsnet with command: %s', ' '.join(colmap2mvsnet_command_line))
     subprocess.run(colmap2mvsnet_command_line, check=True)
-    for image in origin_images:
-        os.remove(os.path.join(output_dir, 'images', image))
-
+    for image in exlude_images:
+        image.unlink()
 
 
 def run_mvsnet_predict(output_dir):
@@ -76,8 +78,8 @@ def run_mvsnet_fuse(output_dir):
     mvsnet_path = get_mvsnet_path()
     base_command = 'source ~/anaconda3/bin/activate mvsnet;'
     mvsnet_fuse_command_line = ['python', os.path.join(mvsnet_path, 'mvsnet/depthfusion.py'),
-                           '--dense_folder', os.path.join(output_dir, 'mvs_result'),
-                           '--fusibile_exe_path', get_fusibile_path()]
+                                '--dense_folder', os.path.join(output_dir, 'mvs_result'),
+                                '--fusibile_exe_path', get_fusibile_path()]
     mvsnet_fuse_command_line.append('--prob_threshold')
     mvsnet_fuse_command_line.append(str(FLAGS.fuse_prob_threshold or (0.8 if FLAGS.mvs == 'mvsnet' else 0.3)))
 

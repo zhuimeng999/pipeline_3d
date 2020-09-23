@@ -22,6 +22,10 @@ def sfm_colmap(images_dir, work_dir):
     --Mapper.ba_global_max_refinement 3
     --Mapper.ba_global_points_freq 200000
     '''
+
+    if pathlib.Path(work_dir).joinpath('sparse/0').is_dir():
+        logging.warning('skip colmap sfm run, because directory %s already exist', pathlib.Path(work_dir).joinpath('sparse/0'))
+        return
     LogThanExitIfFailed(FLAGS.sfm_global is False,
                         'colmap only support INCREMENTAL sfm reconstruction')
     colmap_command_line = ['colmap', 'automatic_reconstructor',
