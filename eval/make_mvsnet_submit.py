@@ -165,10 +165,11 @@ if __name__ == '__main__':
         fuse_run_helper(FLAGS.fuse, fuse_work_dir)
 
     for scene_name, scene_path, mvs_work_dir, fuse_work_dir in ds.get_fuse_infos():
+        pathlib.Path(FLAGS.eval_dir).mkdir(parents=True, exist_ok=True)
         fused_path = os.path.join(FLAGS.eval_dir, scene_name + '.ply')
         log_path = os.path.join(FLAGS.eval_dir, scene_name + '.log')
         if os.path.isfile(fused_path) is False:
-            subprocess.run(['cp', '-v', os.path.join(fuse_work_dir, FLAGS.mvs + '_fused.ply'),
+            subprocess.run(['cp', '-v', os.path.join(fuse_work_dir, FLAGS.fuse + '_fused.ply'),
                             fused_path], check=True)
         else:
             logging.warning('skip copy file %s, already exist', fused_path)
