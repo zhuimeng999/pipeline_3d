@@ -64,6 +64,7 @@ class BaseDataset:
         self.fuse_dir = fuse_dir
 
         self.scene_names = list(map(lambda x: x.name, filter(lambda x: x.is_dir(), pathlib.Path(scene_dir).iterdir())))
+        self.scene_names.sort()
         logging.info('all scenes: %s', self.scene_names)
         sfm_work_infos = []
         mvs_work_infos = []
@@ -186,32 +187,59 @@ if __name__ == '__main__':
             logging.warning('skip generate log file %s, already exist', log_path)
 
     if FLAGS.report:
+        report = {}
         for scene_name, scene_path, mvs_work_dir, fuse_work_dir in ds.get_fuse_infos():
             fused_path = os.path.join(FLAGS.eval_dir, scene_name + '.ply')
             log_path = os.path.join(FLAGS.eval_dir, scene_name + '.log')
             report_path = os.path.join(FLAGS.eval_dir, scene_name + '_report.txt')
             if os.path.isfile(report_path):
                 logging.warning('skip generate report for scene %s, because %s already exist', scene_name, report_path)
-            eval_command_line = ['python', 'run.py',
-                                 '--dataset-dir', os.path.join(FLAGS.script_dir, 'eval', scene_name),
-                                 '--traj-path', log_path,
-                                 '--ply-path', fused_path]
-            proc = subprocess.Popen(eval_command_line, stdout=subprocess.PIPE,
-                                    cwd=os.path.join(FLAGS.script_dir, 'TanksAndTemples/python_toolbox/evaluation'))
+                with open(report_path, 'r') as f:
+                    outputs = f.readlines()
+            else:
+                eval_command_line = ['python', '-u', 'run.py',
+                                     '--dataset-dir', os.path.join(FLAGS.script_dir, 'eval', scene_name),
+                                     '--traj-path', log_path,
+                                     '--ply-path', fused_path]
+                proc = subprocess.Popen(eval_command_line, stdout=subprocess.PIPE,
+                                        cwd=os.path.join(FLAGS.script_dir, 'TanksAndTemples/python_toolbox/evaluation'))
 
-            outputs = []
-            try:
-                while proc.poll() is None:
-                    line = proc.stdout.readline().rstrip()
-                    print(line.decode())
-                    outputs.append(line)
-                line = proc.stdout.readline().rstrip()
-                print(line.decode())
-                outputs.append(line)
-            except:
-                proc.kill()
-                raise
-            LogThanExitIfFailed(proc.returncode == 0,
-                                'command ' + ' '.join(eval_command_line) + ' return ' + str(proc.returncode))
-            with open(report_path, 'wb') as f:
-                f.writelines(outputs)
+                outputs = []
+                try:
+                    while proc.poll() is None:
+                        line = proc.stdout.readline()
+                        line = line if isinstance(line, str) else line.decode()
+                        print(line , end='')
+                        outputs.append(line)
+
+                    line = proc.stdout.readlines()
+                    line = list(map(lambda x: x if isinstance(x, str) else x.decode(), line))
+                    print(''.join(line), end='')
+                    outputs = outputs + line
+                except:
+                    proc.kill()
+                    proc.wait()
+                    raise
+                LogThanExitIfFailed(proc.returncode == 0,
+                                    'command ' + ' '.join(eval_command_line) + ' return ' + str(proc.returncode))
+                with open(report_path, 'w') as f:
+                    f.write(''.join(outputs))
+
+            report[scene_name] = [-1, -1, -1]
+            for line in outputs:
+                if line.startswith('precision :'):
+                    report[scene_name][0] = float(line.split(':')[1])
+                if line.startswith('recall :'):
+                    report[scene_name][1] = float(line.split(':')[1])
+                if line.startswith('f-score :'):
+                    report[scene_name][2] = float(line.split(':')[1])
+        from tabulate import tabulate
+
+        total_sumery = tabulate(report, headers='keys', showindex=['precision', 'recall', 'f-score'])
+        with open(os.path.join(FLAGS.eval_dir, 'total_sumery.txt'), 'w') as f:
+            import sys
+            f.write(' '.join(sys.argv))
+            f.write('\n')
+            f.write(total_sumery)
+            f.write('\n')
+        print(total_sumery)
