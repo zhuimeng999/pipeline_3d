@@ -234,7 +234,16 @@ def sfm_colmap2mvsnet(in_colmap_dir, in_images_dir, out_mvsnet_dir, build_id: in
                                       '--min_scale', '1.0',
                                       '--max_scale', '1.0']
     subprocess.run(colmap_undistored_command_line, check=True)
-    export_colmap_to_mvsnet(out_mvsnet_dir)
+    if FLAGS.converter_type in ['colmap', 'mvsnet']:
+        view_select_commandline = ['custom_view_select', os.path.join(out_mvsnet_dir, 'images'),
+                                   os.path.join(out_mvsnet_dir, 'sparse'), out_mvsnet_dir,
+                                   '--alg', FLAGS.converter_type]
+        if FLAGS.mvs_max_d is not None:
+            view_select_commandline.append('--max_d')
+            view_select_commandline.append(str(FLAGS.mvs_max_d))
+        subprocess.run(view_select_commandline, check=True)
+    else:
+        export_colmap_to_mvsnet(out_mvsnet_dir)
 
 
 def sfm_openmvg2mvsnet(in_openmvg_dir, in_images_dir, out_mvsnet_dir, build_id: int = None):

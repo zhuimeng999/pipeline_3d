@@ -7,6 +7,7 @@ class GlobalOptionsStorage:
     def __init__(self):
         parser = argparse.ArgumentParser(add_help=False)
         parser.add_argument('--sfm_global', type=bool, default=False, help='use global method rather than incremental')
+        parser.add_argument('--converter_type', type=str, default=None, choices=['mvsnet', 'colmap', 'mvsnet_raw'], help='checkpoint for neural network')
         parser.add_argument('--num_gpu', type=int, default=1, help='how many gpu to use')
         parser.add_argument('--num_cpu', type=int, default=os.cpu_count(), help='how many gpu to use')
         parser.add_argument('--mvs_max_w', type=int, default=None, help='max width to mvs input')
