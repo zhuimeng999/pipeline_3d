@@ -33,6 +33,13 @@ def sfm_colmap2colmap(in_colmap_dir, in_images_dir, out_colmap_dir, build_id: in
                                       '--input_path', select_dir,
                                       '--output_path', out_colmap_dir]
     subprocess.run(colmap_undistored_command_line, check=True)
+    if FLAGS.converter_type in ['colmap', 'mvsnet']:
+        view_select_commandline = ['custom_view_select', os.path.join(out_colmap_dir, 'images'),
+                                   os.path.join(out_colmap_dir, 'sparse'), os.path.join(out_colmap_dir, 'stereo'),
+                                   '--alg', FLAGS.converter_type]
+
+        subprocess.run(view_select_commandline, check=True)
+
 
 
 def fixed_openmvg_to_colmap_error(sfm_colmap_dir):
