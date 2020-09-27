@@ -36,7 +36,7 @@ def sfm_colmap2colmap(in_colmap_dir, in_images_dir, out_colmap_dir, build_id: in
     if FLAGS.converter_type in ['colmap', 'mvsnet']:
         view_select_commandline = ['custom_view_select', os.path.join(out_colmap_dir, 'images'),
                                    os.path.join(out_colmap_dir, 'sparse'), os.path.join(out_colmap_dir, 'stereo'),
-                                   '--alg', FLAGS.converter_type]
+                                   '--alg', FLAGS.converter_type, '--selection_only']
 
         subprocess.run(view_select_commandline, check=True)
 
