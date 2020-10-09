@@ -12,7 +12,7 @@ from pipeline.common_options import GLOBAL_OPTIONS as FLAGS
 def fuse_colmap(fuse_work_dir):
     colmap_fuse_command_line = ['colmap', 'stereo_fusion',
                                 '--workspace_path', os.path.join(fuse_work_dir, 'mvs_result'),
-                                '--output_path', os.path.join(fuse_work_dir, 'fused.ply')]
+                                '--output_path', os.path.join(fuse_work_dir, 'colmap_fused.ply')]
     subprocess.run(colmap_fuse_command_line, check=True)
 
 
