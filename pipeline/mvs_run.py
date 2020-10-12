@@ -51,9 +51,7 @@ def mvs_pmvsnet(mvs_work_dir):
     cl = ['python', os.path.join(esmnet_path, 'test.py'),
           '--data_dir', mvs_work_dir,
           '--output_dir', mvs_work_dir,
-          '--using_ckpt_path', FLAGS.mvs_use_ckpt,
-          '--atomic_h', '96',
-          '--atomic_w', '128']
+          '--ckpt_dir', FLAGS.mvs_use_ckpt]
     subprocess.run(cl + get_mvsnet_options(), check=True)
 
 

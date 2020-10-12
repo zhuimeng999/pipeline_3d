@@ -74,6 +74,7 @@ def fixed_openmvg_to_colmap_error(sfm_colmap_dir):
     for track_id, track in points3Ds.items():
         assert points3Ds_count[track_id] == len(track.point2D_idxs)
 
+    write_model(new_cameres, new_images, points3Ds, sfm_colmap_dir, '.bin')
     write_model(new_cameres, new_images, points3Ds, sfm_colmap_dir, '.txt')
 
 
