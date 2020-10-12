@@ -111,7 +111,7 @@ if __name__ == '__main__':
                        help='sfm algorithm')
 
     mvs_algorithm_list = ['colmap', 'openmvs', 'pmvs', 'cmvs', 'mve',
-                          'mvsnet', 'rmvsnet', 'pointmvsnet']
+                          'mvsnet', 'rmvsnet', 'pointmvsnet', 'pmvsnet', 'custom']
     FLAGS.add_argument('--mvs', type=mvs_network_check, default='colmap', choices=mvs_algorithm_list,
                        help='mvs algorithm')
     FLAGS.add_argument('--fuse', type=mvs_network_check, default='colmap', choices=mvs_algorithm_list,

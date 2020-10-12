@@ -12,7 +12,7 @@ from pipeline.common_options import GLOBAL_OPTIONS as FLAGS
 def fuse_colmap(fuse_work_dir):
     colmap_fuse_command_line = ['colmap', 'stereo_fusion',
                                 '--workspace_path', os.path.join(fuse_work_dir, 'mvs_result'),
-                                '--output_path', os.path.join(fuse_work_dir, 'fused.ply')]
+                                '--output_path', os.path.join(fuse_work_dir, 'colmap_fused.ply')]
     subprocess.run(colmap_fuse_command_line, check=True)
 
 
@@ -40,6 +40,13 @@ def fuse_mvsnet(fuse_work_dir):
 
 def fuse_pointmvsnet(fuse_work_dir):
     run_pointmvsnet_fuse(fuse_work_dir)
+
+
+def fuse_custom(fuse_work_dir):
+    colmap_fuse_command_line = ['custom_fuse', os.path.join(fuse_work_dir, 'mvs_result'), fuse_work_dir,
+                                '--pair_info', os.path.join(fuse_work_dir, 'mvs_result', 'pair.txt'),
+                                '--gpu']
+    subprocess.run(colmap_fuse_command_line, check=True)
 
 
 def fuse_run_helper(alg, fuse_work_dir):

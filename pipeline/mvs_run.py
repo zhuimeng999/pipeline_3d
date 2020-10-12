@@ -45,13 +45,16 @@ def mvs_pointmvsnet(mvs_work_dir):
     run_pointmvsnet_predict(mvs_work_dir)
 
 
-def mvs_esmnet(mvs_work_dir):
-    esmnet_path = os.path.normpath(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../ESMNet')))
-    cl = ['python', os.path.join(esmnet_path, 'old/train_keras.py'),
-          '--data_folder', mvs_work_dir,
-          '--model_name', FLAGS.submodel_name,
-          '--use_ckpt', FLAGS.mvs_use_ckpt]
-    subprocess.run(cl, check=True)
+def mvs_pmvsnet(mvs_work_dir):
+    from algorithm_wrapper.mvsnet_wrapper import get_mvsnet_options
+    esmnet_path = os.path.normpath(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../PMVSNet')))
+    cl = ['python', os.path.join(esmnet_path, 'test.py'),
+          '--data_dir', mvs_work_dir,
+          '--output_dir', mvs_work_dir,
+          '--using_ckpt_path', FLAGS.mvs_use_ckpt,
+          '--atomic_h', '96',
+          '--atomic_w', '128']
+    subprocess.run(cl + get_mvsnet_options(), check=True)
 
 
 def mvs_run_helper(alg, mvs_work_dir):

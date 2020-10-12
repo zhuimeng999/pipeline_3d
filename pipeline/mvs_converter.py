@@ -26,6 +26,10 @@ def mvs_rmvsnet2mvsnet(in_rmvsnet_dir, out_mvsnet_dir, build_id: int = None):
 def mvs_pointmvsnet2pointmvsnet(in_mvsnet_dir, out_mvsnet_dir, build_id: int = None):
     os.symlink(os.path.join(in_mvsnet_dir, 'Eval'), os.path.join(out_mvsnet_dir, 'mvs_result'))
 
+def mvs_pmvsnet2custom(in_pmvsnet_dir, out_custom_dir, build_id: int = None):
+    out_dir = os.path.join(out_custom_dir, 'mvs_result')
+    if os.path.islink(out_dir) is False:
+        os.symlink(in_pmvsnet_dir, os.path.join(out_custom_dir, 'mvs_result'))
 
 def mvs_convert_helper(src_alg, target_alg, in_alg_dir, out_alg_dir, build_id: int = None):
     this_module = sys.modules[__name__]
