@@ -24,6 +24,17 @@ class RadiaCamera:
         return np.array((ret[0] * self.f + self.cx, ret[1] * self.f + self.cy))
 
 
+class PinholeCamera:
+    def __init__(self, fx, fy, cx, cy):
+        self.cy = cy
+        self.cx = cx
+        self.fx = fx
+        self.fy = fy
+
+    def __call__(self, p):
+        return np.array((p[0] * self.fx + self.cx, p[1] * self.fy + self.cy))
+
+
 class OpencvCamera:
     def __init__(self, fx, fy, cx, cy, k1, k2, p1, p2, k3, k4, k5, k6):
         self.fx = fx
@@ -53,6 +64,7 @@ class OpencvCamera:
         p[0] = p[0] + delta1
         p[1] = p[1] + delta2
         return np.array((ret[0] * self.fx + self.cx, ret[1] * self.fy + self.cy))
+
 
 def FindOrConvertSfmResultToColmap(options):
     sfm_model_path = os.path.join(options.sfm_path, 'sfm_colmap')
@@ -88,6 +100,14 @@ def format_camera(cameras):
                 radia2 = camera.params[4]
             new_camers[camera_id] = RadiaCamera(camera.params[0], camera.params[1], camera.params[2], camera.params[3],
                                                 radia2)
+        elif camera.model in ['PINHOLE', 'SIMPLE_PINHOLE']:
+            if len(camera.params) == 4:
+                new_camers[camera_id] = PinholeCamera(camera.params[0], camera.params[1], camera.params[2],
+                                                      camera.params[3])
+            else:
+                assert len(camera.params) == 3
+                new_camers[camera_id] = PinholeCamera(camera.params[0], camera.params[0], camera.params[1],
+                                                      camera.params[2])
         elif camera.model in ['FULL_OPENCV']:
             new_camers[camera_id] = OpencvCamera(*camera.params)
         else:
@@ -135,6 +155,22 @@ def PrintReprojectionErrors(cameras, images, points3D):
         len(reprojection_errors), num_projections_behind_camera, mean_reprojection_error, median_reprojection_error)
 
 
+def PrintDepthGrad(cameras, images, points3D):
+    for image_id, image in images.items():
+        for track_id in image.point3D_ids:
+            track = points3D[track_id]
+            for view_id, feature_id in zip(track.image_ids, track.point2D_idxs):
+                if view_id == image_id:
+                    continue
+                image = images[view_id]
+                camera = cameras[image.camera_id]
+                assert track_id == image.point3D_ids[feature_id]
+                # feature_id = np.where(image.point3D_ids == track_id)
+                feature = image.xys[feature_id]
+
+                projection, z = ProjectPoint(camera, image, track.xyz)
+
+
 def PrintTrackLengthHistogram(cameras, images, points3D):
     track_lengths = []
     for track_id, track in points3D.items():
@@ -164,20 +200,12 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument('sfm_path', help='sfm reconstruction result directory')
-    parser.add_argument('--alg_type', default=None, choices=['colmap', 'openmvg', 'theiasfm', 'mve'])
-    parser.add_argument('--build_id', default=None, type=int)
     options = parser.parse_args()
-    if options.alg_type is None:
-        with open(os.path.join(options.sfm_path, 'sfm_run_options.txt'), 'r') as f:
-            line = map(lambda x: x.strip(), filter(lambda x: x.rstrip()[0] != '#', f))
-            options.alg_type = get_sfm_parser().parse_args(list(line)).alg_type
-            logging.info('use algorithm type get from sfm config file: %s', options.alg_type)
 
-    sfm_model_path = FindOrConvertSfmResultToColmap(options)
-    logging.info('find reconstruction on: %s', sfm_model_path)
-    cameras, images, points3D = read_model(sfm_model_path, '.bin' if options.alg_type == 'colmap' else '.txt')
+    cameras, images, points3D = read_model(options.sfm_path, '.bin')
     logging.info('Num views: %d', len(images))
     logging.info('Num 3D points: %d', len(points3D))
     new_cameras = format_camera(cameras)
     PrintReprojectionErrors(new_cameras, images, points3D)
     PrintTrackLengthHistogram(new_cameras, images, points3D)
+    # PrintDepthGrad(new_cameras, images, points3D)
