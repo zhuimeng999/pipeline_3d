@@ -1,12 +1,16 @@
 # -*- coding: UTF-8 -*-
 
+import os
+import pathlib
 import argparse
 import numpy as np
-
-from pipeline.sfm_run import get_sfm_parser
+import logging
+import math
+from tqdm import tqdm
+import collections
 from third_party.colmap.read_write_model import read_model
-from pipeline.utils import LogThanExitIfFailed
-from pipeline.sfm_converter import *
+from pipeline.utils import LogThanExitIfFailed, InitLogging
+import pickle
 
 
 class RadiaCamera:
@@ -16,6 +20,8 @@ class RadiaCamera:
         self.cy = cy
         self.cx = cx
         self.f = f
+        self.K = np.array([[f, 0, cx], [0, f, cy], [0, 0, 1]])
+        self.K_inv = np.linalg.inv(self.K)
 
     def __call__(self, p):
         r2 = p[0] * p[0] + p[1] * p[1]
@@ -30,6 +36,8 @@ class PinholeCamera:
         self.cx = cx
         self.fx = fx
         self.fy = fy
+        self.K = np.array([[fx, 0, cx], [0, fy, cy], [0, 0, 1]])
+        self.K_inv = np.linalg.inv(self.K)
 
     def __call__(self, p):
         return np.array((p[0] * self.fx + self.cx, p[1] * self.fy + self.cy))
@@ -112,8 +120,16 @@ def format_camera(cameras):
             new_camers[camera_id] = OpencvCamera(*camera.params)
         else:
             LogThanExitIfFailed(False, 'unsupport camera type: %s', camera.model)
+        new_camers[camera_id].height = camera.height
+        new_camers[camera_id].width = camera.width
 
     return new_camers
+
+
+def format_images(images):
+    for image_id, image in images.items():
+        image.mat = image.qvec2rotmat()
+        image.centor = -image.mat.dot(image.tvec)
 
 
 def ProjectPoint(camera, image, p_in):
@@ -155,22 +171,6 @@ def PrintReprojectionErrors(cameras, images, points3D):
         len(reprojection_errors), num_projections_behind_camera, mean_reprojection_error, median_reprojection_error)
 
 
-def PrintDepthGrad(cameras, images, points3D):
-    for image_id, image in images.items():
-        for track_id in image.point3D_ids:
-            track = points3D[track_id]
-            for view_id, feature_id in zip(track.image_ids, track.point2D_idxs):
-                if view_id == image_id:
-                    continue
-                image = images[view_id]
-                camera = cameras[image.camera_id]
-                assert track_id == image.point3D_ids[feature_id]
-                # feature_id = np.where(image.point3D_ids == track_id)
-                feature = image.xys[feature_id]
-
-                projection, z = ProjectPoint(camera, image, track.xyz)
-
-
 def PrintTrackLengthHistogram(cameras, images, points3D):
     track_lengths = []
     for track_id, track in points3D.items():
@@ -195,6 +195,112 @@ def PrintTrackLengthHistogram(cameras, images, points3D):
     logging.info("Track length histogram = \n%s", histogram)
 
 
+def colmap_view_select(cameras, images, points3D):
+    point_shared = {}
+    angles = {}
+    for image_id, image in images.items():
+        point_shared[image_id] = {}
+        angles[image_id] = {}
+        for image_id_y, image in images.items():
+            point_shared[image_id][image_id_y] = 0
+            angles[image_id][image_id_y] = []
+
+    for track_id, track in tqdm(points3D.items()):
+        for id_x in track.image_ids:
+            for id_y in track.image_ids:
+                if id_x == id_y:
+                    continue
+                d1 = np.square(track.xyz - images[id_x].centor).sum()
+                d2 = np.square(track.xyz - images[id_y].centor).sum()
+                d3 = np.square(images[id_x].centor - images[id_y].centor).sum()
+                tmp = 2. * np.sqrt(d1*d2)
+                if tmp == 0.:
+                    continue
+                angle = np.abs(np.arccos((d1 + d2 - d3)/tmp))
+                angle = np.min([angle, math.pi - angle])
+                point_shared[id_x][id_y] += 1
+                angles[id_x][id_y].append(angle)
+                point_shared[id_y][id_x] += 1
+                angles[id_y][id_x].append(angle)
+
+    for image_id, image in images.items():
+        for image_id_y, image in images.items():
+            if image_id == image_id_y:
+                continue
+            if len(angles[image_id][image_id_y]) < 100:
+                point_shared[image_id][image_id_y] = 0
+                continue
+            percentile = int(np.round(75*len(angles[image_id][image_id_y])/100))
+            angle = np.partition(angles[image_id][image_id_y], percentile)[percentile]
+            if angle < (1.*math.pi/180.):
+                point_shared[image_id][image_id_y] = 0
+
+    with open('/tmp/colmap_dump.pikle', 'wb') as f:
+        pickle.dump(point_shared, f)
+
+
+def mvsnet_view_select(cameras, images, points3D):
+    point_shared = {}
+    for image_id, image in images.items():
+        point_shared[image_id] = {}
+        for image_id_y, image in images.items():
+            point_shared[image_id][image_id_y] = 0.
+
+    for track_id, track in tqdm(points3D.items()):
+        for id_x in track.image_ids:
+            for id_y in track.image_ids:
+                if id_x == id_y:
+                    continue
+                d1 = np.square(track.xyz - images[id_x].centor).sum()
+                d2 = np.square(track.xyz - images[id_y].centor).sum()
+                d3 = np.square(images[id_x].centor - images[id_y].centor).sum()
+                tmp = 2. * np.sqrt(d1*d2)
+                if tmp == 0.:
+                    continue
+                angle = np.abs(np.arccos((d1 + d2 - d3)/tmp))
+                angle = 180. * np.min([angle, math.pi - angle])/math.pi
+                if angle < 5:
+                    kernel = (angle - 5.)/1.
+                else:
+                    kernel = (angle - 5.)/10.
+                score = math.exp(-kernel*kernel/2)
+                point_shared[id_x][id_y] += score
+                point_shared[id_y][id_x] += score
+
+    with open('/tmp/mvsnet_dump.pikle', 'wb') as f:
+        pickle.dump(point_shared, f)
+
+
+def disparity_compute(cameras, images, points3D):
+    with open('/tmp/mvsnet_dump.pikle', 'rb') as f:
+        point_shared = pickle.load(f)
+    for image_id, image in images.items():
+        camera = cameras[image.camera_id]
+        order_map = sorted(point_shared[image_id].items(), key = lambda x: x[1], reverse=True)
+        for i in range(10):
+            image_id_y = order_map[i][0]
+            image_y = images[image_id_y]
+            R = image_y.mat.dot(image.mat.T)
+            T = image_y.tvec - R.dot(image.tvec)
+            centor = T[:2]/T[2]
+
+            n3 = []
+            d = []
+            for h in range(camera.height):
+                for w in range(camera.width):
+                    ref_pos = camera.K_inv.dot([w + 0.5, h + 0.5, 1.])
+                    ref_pos = ref_pos/np.linalg.norm(ref_pos)
+                    src_pos = R.dot(ref_pos)
+                    projection = src_pos[:2]/src_pos[2]
+                    direction =
+                    distance = np.linalg.norm(centor - projection)
+                    n3.append(src_pos[2])
+                    d.append(distance)
+            print('size: ', camera.width/camera.fx, ' ', camera.height/camera.fy, ' resolution: ', 1./camera.fx)
+            print('n3: ', np.min(n3), ' ', np.max(n3), ' ', np.median(n3), ' ', np.mean(n3))
+            print('d: ', np.min(d), ' ', np.max(d), ' ', np.median(d), ' ', np.mean(d))
+
+
 if __name__ == '__main__':
     InitLogging()
 
@@ -206,6 +312,9 @@ if __name__ == '__main__':
     logging.info('Num views: %d', len(images))
     logging.info('Num 3D points: %d', len(points3D))
     new_cameras = format_camera(cameras)
-    PrintReprojectionErrors(new_cameras, images, points3D)
-    PrintTrackLengthHistogram(new_cameras, images, points3D)
-    # PrintDepthGrad(new_cameras, images, points3D)
+    format_images(images)
+    # PrintReprojectionErrors(new_cameras, images, points3D)
+    # PrintTrackLengthHistogram(new_cameras, images, points3D)
+    # colmap_view_select(new_cameras, images, points3D)
+    # mvsnet_view_select(new_cameras, images, points3D)
+    disparity_compute(new_cameras, images, points3D)
