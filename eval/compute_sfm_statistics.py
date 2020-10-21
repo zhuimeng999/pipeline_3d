@@ -7,10 +7,44 @@ import numpy as np
 import logging
 import math
 from tqdm import tqdm
-import collections
 from third_party.colmap.read_write_model import read_model
 from pipeline.utils import LogThanExitIfFailed, InitLogging
 import pickle
+import multiprocessing as mp
+
+# This import registers the 3D projection, but is otherwise unused.
+from mpl_toolkits.mplot3d import Axes3D  # noqa: F401 unused import
+
+import matplotlib.pyplot as plt
+from matplotlib import cm
+from matplotlib.ticker import LinearLocator, FormatStrFormatter
+
+
+def show_3d_suface(depth, title=None, block=True):
+    fig = plt.figure()
+    if title:
+        fig.suptitle(title)
+    ax = fig.gca(projection='3d')
+
+    # Make data.
+    X = np.arange(0, depth.shape[0], 1)
+    Y = np.arange(0, depth.shape[1], 1)
+    X, Y = np.meshgrid(X, Y)
+    Z = depth
+
+    # Plot the surface.
+    surf = ax.plot_surface(Y, X, Z.T, cmap=cm.coolwarm,
+                           linewidth=0, antialiased=False)
+
+    # Customize the z axis.
+    # ax.set_zlim(-1.01, 1.01)
+    # ax.zaxis.set_major_locator(LinearLocator(10))
+    # ax.zaxis.set_major_formatter(FormatStrFormatter('%.02f'))
+
+    # Add a color bar which maps values to colors.
+    fig.colorbar(surf, shrink=0.5, aspect=5)
+
+    plt.show(block=block)
 
 
 class RadiaCamera:
@@ -20,6 +54,8 @@ class RadiaCamera:
         self.cy = cy
         self.cx = cx
         self.f = f
+        self.fx = f
+        self.fy = f
         self.K = np.array([[f, 0, cx], [0, f, cy], [0, 0, 1]])
         self.K_inv = np.linalg.inv(self.K)
 
@@ -122,6 +158,9 @@ def format_camera(cameras):
             LogThanExitIfFailed(False, 'unsupport camera type: %s', camera.model)
         new_camers[camera_id].height = camera.height
         new_camers[camera_id].width = camera.width
+        new_camers[camera_id].min_w, new_camers[camera_id].min_h, _ = new_camers[camera_id].K_inv.dot([0, 0, 1])
+        new_camers[camera_id].max_w, new_camers[camera_id].max_h, _ = new_camers[camera_id].K_inv.dot(
+            [camera.width, camera.height, 1])
 
     return new_camers
 
@@ -213,10 +252,10 @@ def colmap_view_select(cameras, images, points3D):
                 d1 = np.square(track.xyz - images[id_x].centor).sum()
                 d2 = np.square(track.xyz - images[id_y].centor).sum()
                 d3 = np.square(images[id_x].centor - images[id_y].centor).sum()
-                tmp = 2. * np.sqrt(d1*d2)
+                tmp = 2. * np.sqrt(d1 * d2)
                 if tmp == 0.:
                     continue
-                angle = np.abs(np.arccos((d1 + d2 - d3)/tmp))
+                angle = np.abs(np.arccos((d1 + d2 - d3) / tmp))
                 angle = np.min([angle, math.pi - angle])
                 point_shared[id_x][id_y] += 1
                 angles[id_x][id_y].append(angle)
@@ -230,9 +269,9 @@ def colmap_view_select(cameras, images, points3D):
             if len(angles[image_id][image_id_y]) < 100:
                 point_shared[image_id][image_id_y] = 0
                 continue
-            percentile = int(np.round(75*len(angles[image_id][image_id_y])/100))
+            percentile = int(np.round(75 * len(angles[image_id][image_id_y]) / 100))
             angle = np.partition(angles[image_id][image_id_y], percentile)[percentile]
-            if angle < (1.*math.pi/180.):
+            if angle < (1. * math.pi / 180.):
                 point_shared[image_id][image_id_y] = 0
 
     with open('/tmp/colmap_dump.pikle', 'wb') as f:
@@ -254,16 +293,16 @@ def mvsnet_view_select(cameras, images, points3D):
                 d1 = np.square(track.xyz - images[id_x].centor).sum()
                 d2 = np.square(track.xyz - images[id_y].centor).sum()
                 d3 = np.square(images[id_x].centor - images[id_y].centor).sum()
-                tmp = 2. * np.sqrt(d1*d2)
+                tmp = 2. * np.sqrt(d1 * d2)
                 if tmp == 0.:
                     continue
-                angle = np.abs(np.arccos((d1 + d2 - d3)/tmp))
-                angle = 180. * np.min([angle, math.pi - angle])/math.pi
+                angle = np.abs(np.arccos((d1 + d2 - d3) / tmp))
+                angle = 180. * np.min([angle, math.pi - angle]) / math.pi
                 if angle < 5:
-                    kernel = (angle - 5.)/1.
+                    kernel = (angle - 5.) / 1.
                 else:
-                    kernel = (angle - 5.)/10.
-                score = math.exp(-kernel*kernel/2)
+                    kernel = (angle - 5.) / 10.
+                score = math.exp(-kernel * kernel / 2)
                 point_shared[id_x][id_y] += score
                 point_shared[id_y][id_x] += score
 
@@ -271,34 +310,114 @@ def mvsnet_view_select(cameras, images, points3D):
         pickle.dump(point_shared, f)
 
 
+def get_depth_range(T, src_pos, camera):
+    range_w = np.array([camera.min_w, camera.max_w])
+    denominator_w = src_pos[..., 0:1] - src_pos[..., 2:3] * range_w[None, None, :]
+    numerator_w = T[2] * range_w - T[0]
+
+    assert np.all(denominator_w != 0.)
+
+    depth_range_w = numerator_w[None, None, :] / denominator_w
+    mask_w = (denominator_w[..., 0:1] < 0) ^ (denominator_w[..., 1:2] < 0.)
+    depth_max_w = np.max(depth_range_w, axis=-1)
+    depth_range_w = np.sort(depth_range_w, axis=-1)
+    depth_range_w = np.where(mask_w, np.stack([depth_max_w, np.full_like(depth_max_w, fill_value=np.PINF)], axis=-1),
+                             depth_range_w)
+
+    range_h = np.array([camera.min_h, camera.max_h])
+    denominator_h = src_pos[..., 1:2] - src_pos[..., 2:3] * range_h[None, None, :]
+    numerator_h = T[2] * range_h - T[1]
+
+    assert np.all(denominator_h != 0.)
+
+    depth_range_h = numerator_h[None, None, :] / denominator_h
+    mask_h = (denominator_h[..., 0:1] < 0) ^ (denominator_h[..., 1:2] < 0.)
+    depth_max_h = np.max(depth_range_h, axis=-1)
+    depth_range_h = np.sort(depth_range_h, axis=-1)
+    depth_range_h = np.where(mask_h, np.stack([depth_max_h, np.full_like(depth_max_h, fill_value=np.PINF)], axis=-1),
+                             depth_range_h)
+
+    range_min = np.maximum(depth_range_w[..., 0], depth_range_h[..., 0])
+    range_max = np.minimum(depth_range_w[..., 1], depth_range_h[..., 1])
+    range_min = np.where(range_min < 0., 0, range_min)
+
+    valid_3d = -T[2] / src_pos[:, :, 2]
+    range_min = np.where(src_pos[:, :, 2] > 0, np.maximum(range_min, valid_3d), range_min)
+    range_max = np.where(src_pos[:, :, 2] < 0, np.minimum(range_max, valid_3d), range_max)
+    return np.stack([range_min, range_max], axis=-1)
+
+
+def get_disparity_range(projection, direction, camera):
+    assert np.all(direction != 0.)
+    solution1 = (camera.min_w - projection[:, :, 0]) / direction[:, :, 0]
+    solution2 = (camera.max_w - projection[:, :, 0]) / direction[:, :, 0]
+    solution3 = (camera.min_h - projection[:, :, 1]) / direction[:, :, 1]
+    solution4 = (camera.max_h - projection[:, :, 1]) / direction[:, :, 1]
+
+    solution = np.stack([np.maximum(solution1, solution3), np.minimum(solution2, solution4)], axis=-1)
+    solution = np.where((direction[:, :, 0:1] < 0) & (direction[:, :, 1:2] < 0),
+                        np.stack([np.maximum(solution2, solution4), np.minimum(solution1, solution3)], axis=-1),
+                        solution)
+    solution = np.where((direction[:, :, 0:1] > 0) & (direction[:, :, 1:2] < 0),
+                        np.stack([np.maximum(solution1, solution4), np.minimum(solution2, solution3)], axis=-1),
+                        solution)
+    solution = np.where((direction[:, :, 0:1] < 0) & (direction[:, :, 1:2] > 0),
+                        np.stack([np.maximum(solution2, solution3), np.minimum(solution1, solution4)], axis=-1),
+                        solution)
+    solution[..., 0] = np.where(solution[..., 0] > 0, solution[..., 0], 0.)
+    return solution
+
+
 def disparity_compute(cameras, images, points3D):
     with open('/tmp/mvsnet_dump.pikle', 'rb') as f:
         point_shared = pickle.load(f)
+
+    for camera_id, camera in cameras.items():
+        pass
+    grid = np.empty([camera.height, camera.width, 3], dtype=np.float64)
+    for h in range(camera.height):
+        for w in range(camera.width):
+            grid[h, w] = np.array([w + 0.5, h + 0.5, 1.])
+
     for image_id, image in images.items():
         camera = cameras[image.camera_id]
-        order_map = sorted(point_shared[image_id].items(), key = lambda x: x[1], reverse=True)
+        order_map = sorted(point_shared[image_id].items(), key=lambda x: x[1], reverse=True)
+        ref_pos = np.squeeze(np.matmul(camera.K_inv[None, None, :, :], grid[:, :, :, None]), axis=-1)
+        ref_pos = ref_pos / np.linalg.norm(ref_pos, axis=-1, keepdims=True)
+
         for i in range(10):
             image_id_y = order_map[i][0]
             image_y = images[image_id_y]
             R = image_y.mat.dot(image.mat.T)
             T = image_y.tvec - R.dot(image.tvec)
-            centor = T[:2]/T[2]
+            centor = T[:2] / T[2]
 
-            n3 = []
-            d = []
-            for h in range(camera.height):
-                for w in range(camera.width):
-                    ref_pos = camera.K_inv.dot([w + 0.5, h + 0.5, 1.])
-                    ref_pos = ref_pos/np.linalg.norm(ref_pos)
-                    src_pos = R.dot(ref_pos)
-                    projection = src_pos[:2]/src_pos[2]
-                    direction =
-                    distance = np.linalg.norm(centor - projection)
-                    n3.append(src_pos[2])
-                    d.append(distance)
-            print('size: ', camera.width/camera.fx, ' ', camera.height/camera.fy, ' resolution: ', 1./camera.fx)
-            print('n3: ', np.min(n3), ' ', np.max(n3), ' ', np.median(n3), ' ', np.mean(n3))
-            print('d: ', np.min(d), ' ', np.max(d), ' ', np.median(d), ' ', np.mean(d))
+            src_pos = np.squeeze(np.matmul(R[None, None, :, :], ref_pos[:, :, :, None]), axis=-1)
+
+            projection = src_pos[..., :2] / src_pos[..., 2:3]
+
+            direction = centor[None, None, :] - projection
+            if T[2] < 0.:
+                direction = -direction
+            distance = np.linalg.norm(direction, axis=-1, keepdims=True)
+            direction = direction / distance
+            depth_range = get_depth_range(T, src_pos, camera)
+            disparity_range = get_disparity_range(projection, direction, camera)
+            if T[2] > 0.:
+                disparity_range[..., 1:2] = np.minimum(disparity_range[..., 1:2], distance)
+
+            disparity_range_ = distance / np.abs(1. + depth_range * src_pos[..., 2:3] / T[2])
+            disparity_range_ = np.sort(disparity_range_, axis=-1)
+            err = np.abs(disparity_range_ - disparity_range)
+            err = np.where(depth_range[..., 0:1] > depth_range[..., 1:2], 0., err)
+
+            resolution = (camera.max_w - camera.min_w)/camera.width
+            np.linspace()
+
+            disparity_width = np.where(disparity_range[..., 1] > disparity_range[..., 0], disparity_range[..., 1] - disparity_range[..., 0], 0.)
+            depth_width = np.where(depth_range[..., 1] > depth_range[..., 0], depth_range[..., 1] - depth_range[..., 0], 0,)
+            show_3d_suface(disparity_width, block=False)
+            show_3d_suface(depth_width)
 
 
 if __name__ == '__main__':
