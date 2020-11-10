@@ -43,8 +43,12 @@ def fuse_pointmvsnet(fuse_work_dir):
 
 
 def fuse_custom(fuse_work_dir):
+    pair_path = os.path.join(fuse_work_dir, 'mvs_result', 'pair.txt')
+    if os.path.isfile(pair_path) is False:
+        pair_path = os.path.join(fuse_work_dir, 'mvs_result/depth_mvsnet', 'pair.txt')
+    assert os.path.isfile(pair_path)
     colmap_fuse_command_line = ['custom_fuse', os.path.join(fuse_work_dir, 'mvs_result'), fuse_work_dir,
-                                '--pair_info', os.path.join(fuse_work_dir, 'mvs_result', 'pair.txt'),
+                                '--pair_info', pair_path,
                                 '--gpu']
     subprocess.run(colmap_fuse_command_line, check=True)
 
