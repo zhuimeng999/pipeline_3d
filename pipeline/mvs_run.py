@@ -67,7 +67,7 @@ def mvs_dmvsnet(mvs_work_dir):
           '--base_h', '576',
           '--hypothesis_num', '64,17,17,9,9',
           '--internal_scale', '0.8,0.4,0.2,0.1,0.08']
-    subprocess.run(cl + get_mvsnet_options(), check=True)
+    subprocess.run(cl, check=True)
 
 
 def mvs_run_helper(alg, mvs_work_dir):
