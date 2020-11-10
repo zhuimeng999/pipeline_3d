@@ -16,7 +16,8 @@ class GlobalOptionsStorage:
         parser.add_argument('--mvs_view_num', type=int, default=None, help='view number used to estimate depth map')
         parser.add_argument('--fuse_prob_threshold', type=float, default=None, help='prob threshold for fuse')
         parser.add_argument('--submodel_name', type=str, default='ESMNetV3', help='model_name for ESMNet')
-        parser.add_argument('--mvs_use_ckpt', type=str, default=None, help='checkpoint for neural network')
+        parser.add_argument('--mvs_ckpt_path', type=str, default=None, help='checkpoint for neural network')
+        parser.add_argument('--mvs_ckpt_dir', type=str, default=None, help='checkpoint for neural network')
         self.parser = parser
         self.options = None
 
