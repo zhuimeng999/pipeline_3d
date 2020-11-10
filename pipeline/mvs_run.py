@@ -60,7 +60,13 @@ def mvs_dmvsnet(mvs_work_dir):
     cl = ['python', os.path.join(esmnet_path, 'test.py'),
           '--data_dir', mvs_work_dir,
           '--output_dir', mvs_work_dir,
-          '--ckpt_dir', FLAGS.mvs_use_ckpt]
+          '--ckpt_dir', FLAGS.mvs_use_ckpt,
+          '--max_w', FLAGS.mvs_max_w or '1920',
+          '--max_h', FLAGS.mvs_max_h or '1080',
+          '--base_w', '1024',
+          '--base_h', '576',
+          '--hypothesis_num', '64,17,17,9,9',
+          '--internal_scale', '0.8,0.4,0.2,0.1,0.08']
     subprocess.run(cl + get_mvsnet_options(), check=True)
 
 
