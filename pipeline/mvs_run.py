@@ -54,6 +54,15 @@ def mvs_pmvsnet(mvs_work_dir):
           '--ckpt_dir', FLAGS.mvs_use_ckpt]
     subprocess.run(cl + get_mvsnet_options(), check=True)
 
+def mvs_dmvsnet(mvs_work_dir):
+    from algorithm_wrapper.mvsnet_wrapper import get_mvsnet_options
+    esmnet_path = os.path.normpath(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../DMVSNet')))
+    cl = ['python', os.path.join(esmnet_path, 'test.py'),
+          '--data_dir', mvs_work_dir,
+          '--output_dir', mvs_work_dir,
+          '--ckpt_dir', FLAGS.mvs_use_ckpt]
+    subprocess.run(cl + get_mvsnet_options(), check=True)
+
 
 def mvs_run_helper(alg, mvs_work_dir):
     DONE = os.path.join(mvs_work_dir, 'DONE')

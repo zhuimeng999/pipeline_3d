@@ -295,6 +295,12 @@ def sfm_colmap2pmvsnet(in_colmap_dir, in_images_dir, out_pmvsnet_dir, build_id: 
 def sfm_openmvg2pmvsnet(in_openmvg_dir, in_images_dir, out_pmvsnet_dir, build_id: int = None):
     sfm_openmvg2mvsnet(in_openmvg_dir, in_images_dir, out_pmvsnet_dir, build_id)
 
+def sfm_colmap2dmvsnet(in_colmap_dir, in_images_dir, out_dmvsnet_dir, build_id: int = None):
+    sfm_colmap2mvsnet(in_colmap_dir, in_images_dir, out_dmvsnet_dir, build_id)
+
+def sfm_openmvg2dmvsnet(in_openmvg_dir, in_images_dir, out_dmvsnet_dir, build_id: int = None):
+    sfm_openmvg2mvsnet(in_openmvg_dir, in_images_dir, out_dmvsnet_dir, build_id)
+
 def sfm_convert_helper(src_alg, target_alg, in_alg_dir, in_images_dir, out_alg_dir, build_id: int = None):
     this_module = sys.modules[__name__]
     convert_fun = getattr(this_module, 'sfm_' + src_alg + '2' + target_alg)

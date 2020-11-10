@@ -237,78 +237,150 @@ def PrintTrackLengthHistogram(cameras, images, points3D):
 def colmap_view_select(cameras, images, points3D):
     point_shared = {}
     angles = {}
+    scores = {}
+    image_depth_range = {}
     for image_id, image in images.items():
         point_shared[image_id] = {}
         angles[image_id] = {}
+        scores[image_id] = {}
+        image_depth_range[image_id] = []
         for image_id_y, image in images.items():
-            point_shared[image_id][image_id_y] = 0
+            point_shared[image_id][image_id_y] = []
             angles[image_id][image_id_y] = []
+            scores[image_id][image_id_y] = 0
 
     for track_id, track in tqdm(points3D.items()):
-        for id_x in track.image_ids:
-            for id_y in track.image_ids:
-                if id_x == id_y:
-                    continue
-                d1 = np.square(track.xyz - images[id_x].centor).sum()
-                d2 = np.square(track.xyz - images[id_y].centor).sum()
-                d3 = np.square(images[id_x].centor - images[id_y].centor).sum()
-                tmp = 2. * np.sqrt(d1 * d2)
-                if tmp == 0.:
-                    continue
-                angle = np.abs(np.arccos((d1 + d2 - d3) / tmp))
-                angle = np.min([angle, math.pi - angle])
-                point_shared[id_x][id_y] += 1
-                angles[id_x][id_y].append(angle)
-                point_shared[id_y][id_x] += 1
-                angles[id_y][id_x].append(angle)
+        for i in range(len(track.image_ids)):
+            image_depth_range[track.image_ids[i]].append(track.xyz)
+            for j in range(i + 1, len(track.image_ids)):
+                if track.image_ids[i] < track.image_ids[j]:
+                    point_shared[track.image_ids[i]][track.image_ids[j]].append(track.xyz)
+                elif track.image_ids[j] < track.image_ids[i]:
+                    point_shared[track.image_ids[j]][track.image_ids[i]].append(track.xyz)
+
+    for k, v in image_depth_range.items():
+        proj = images[k].mat.dot(np.array(v).T) + images[k].tvec[:, None]
+        image_depth_range[k] = np.sort(proj[2])
+
+    for k1, v1 in point_shared.items():
+        for k2, v2 in v1.items():
+            if k1 >= k2:
+                continue
+            if len(point_shared[k1][k2]) == 0:
+                continue
+            share_vec = np.array(point_shared[k1][k2])
+            d1 = np.sum(np.square(share_vec - images[k1].centor[None, :]), axis=-1)
+            d2 = np.sum(np.square(share_vec - images[k2].centor[None, :]), axis=-1)
+            d3 = np.square(images[k1].centor - images[k2].centor).sum()
+            tmp = 2. * np.sqrt(d1 * d2)
+            angle = np.abs(np.arccos((d1 + d2 - d3) / tmp))
+            angle = np.minimum(angle, math.pi - angle)
+            angles[k1][k2] = angle
+            angles[k2][k1] = angle
+
+
+    # for track_id, track in tqdm(points3D.items()):
+    #     for id_x in track.image_ids:
+    #         for id_y in track.image_ids:
+    #             if id_x == id_y:
+    #                 continue
+    #             d1 = np.square(track.xyz - images[id_x].centor).sum()
+    #             d2 = np.square(track.xyz - images[id_y].centor).sum()
+    #             d3 = np.square(images[id_x].centor - images[id_y].centor).sum()
+    #             tmp = 2. * np.sqrt(d1 * d2)
+    #             if tmp == 0.:
+    #                 continue
+    #             angle = np.abs(np.arccos((d1 + d2 - d3) / tmp))
+    #             angle = np.min([angle, math.pi - angle])
+    #             point_shared[id_x][id_y] += 1
+    #             angles[id_x][id_y].append(angle)
+    #             point_shared[id_y][id_x] += 1
+    #             angles[id_y][id_x].append(angle)
 
     for image_id, image in images.items():
         for image_id_y, image in images.items():
             if image_id == image_id_y:
                 continue
             if len(angles[image_id][image_id_y]) < 100:
-                point_shared[image_id][image_id_y] = 0
                 continue
             percentile = int(np.round(75 * len(angles[image_id][image_id_y]) / 100))
             angle = np.partition(angles[image_id][image_id_y], percentile)[percentile]
-            if angle < (1. * math.pi / 180.):
-                point_shared[image_id][image_id_y] = 0
+            if angle >= (1. * math.pi / 180.):
+                scores[image_id][image_id_y] = len(angles[image_id][image_id_y])
 
     with open('/tmp/colmap_dump.pikle', 'wb') as f:
-        pickle.dump(point_shared, f)
-
+        pickle.dump(scores, f)
+    with open('/tmp/colmap_depth.pikle', 'wb') as f:
+        pickle.dump(image_depth_range, f)
 
 def mvsnet_view_select(cameras, images, points3D):
     point_shared = {}
+    scores = {}
+    image_depth_range = {}
     for image_id, image in images.items():
         point_shared[image_id] = {}
+        scores[image_id] = {}
+        image_depth_range[image_id] = []
         for image_id_y, image in images.items():
-            point_shared[image_id][image_id_y] = 0.
+            point_shared[image_id][image_id_y] = []
+            scores[image_id][image_id_y] = 0
 
     for track_id, track in tqdm(points3D.items()):
-        for id_x in track.image_ids:
-            for id_y in track.image_ids:
-                if id_x == id_y:
-                    continue
-                d1 = np.square(track.xyz - images[id_x].centor).sum()
-                d2 = np.square(track.xyz - images[id_y].centor).sum()
-                d3 = np.square(images[id_x].centor - images[id_y].centor).sum()
-                tmp = 2. * np.sqrt(d1 * d2)
-                if tmp == 0.:
-                    continue
-                angle = np.abs(np.arccos((d1 + d2 - d3) / tmp))
-                angle = 180. * np.min([angle, math.pi - angle]) / math.pi
-                if angle < 5:
-                    kernel = (angle - 5.) / 1.
-                else:
-                    kernel = (angle - 5.) / 10.
-                score = math.exp(-kernel * kernel / 2)
-                point_shared[id_x][id_y] += score
-                point_shared[id_y][id_x] += score
+        for i in range(len(track.image_ids)):
+            image_depth_range[track.image_ids[i]].append(track.xyz)
+            for j in range(i + 1, len(track.image_ids)):
+                if track.image_ids[i] < track.image_ids[j]:
+                    point_shared[track.image_ids[i]][track.image_ids[j]].append(track.xyz)
+                elif track.image_ids[j] < track.image_ids[i]:
+                    point_shared[track.image_ids[j]][track.image_ids[i]].append(track.xyz)
+
+    for k, v in image_depth_range.items():
+        proj = images[k].mat.dot(np.array(v).T) + images[k].tvec[:, None]
+        image_depth_range[k] = np.sort(proj[2])
+
+    for k1, v1 in point_shared.items():
+        for k2, v2 in v1.items():
+            if k1 >= k2:
+                continue
+            if len(point_shared[k1][k2]) == 0:
+                continue
+            share_vec = np.array(point_shared[k1][k2])
+            d1 = np.sum(np.square(share_vec - images[k1].centor[None, :]), axis=-1)
+            d2 = np.sum(np.square(share_vec - images[k2].centor[None, :]), axis=-1)
+            d3 = np.square(images[k1].centor - images[k2].centor).sum()
+            tmp = 2. * np.sqrt(d1 * d2)
+            angle = np.abs(np.arccos((d1 + d2 - d3) / tmp))
+            angle = 180*np.minimum(angle, math.pi - angle)/math.pi
+            kernel = np.where(angle < 5, (angle - 5.) / 1., (angle - 5.) / 10.)
+            score = np.exp(-kernel * kernel / 2)
+            scores[k1][k2] = np.sum(score)
+            scores[k2][k1] = np.sum(score)
+
+    # for track_id, track in tqdm(points3D.items()):
+    #     for id_x in track.image_ids:
+    #         for id_y in track.image_ids:
+    #             if id_x == id_y:
+    #                 continue
+    #             d1 = np.square(track.xyz - images[id_x].centor).sum()
+    #             d2 = np.square(track.xyz - images[id_y].centor).sum()
+    #             d3 = np.square(images[id_x].centor - images[id_y].centor).sum()
+    #             tmp = 2. * np.sqrt(d1 * d2)
+    #             if tmp == 0.:
+    #                 continue
+    #             angle = np.abs(np.arccos((d1 + d2 - d3) / tmp))
+    #             angle = 180. * np.min([angle, math.pi - angle]) / math.pi
+    #             if angle < 5:
+    #                 kernel = (angle - 5.) / 1.
+    #             else:
+    #                 kernel = (angle - 5.) / 10.
+    #             score = math.exp(-kernel * kernel / 2)
+    #             point_shared[id_x][id_y] += score
+    #             point_shared[id_y][id_x] += score
 
     with open('/tmp/mvsnet_dump.pikle', 'wb') as f:
-        pickle.dump(point_shared, f)
-
+        pickle.dump(scores, f)
+    with open('/tmp/mvsnet_depth.pikle', 'wb') as f:
+        pickle.dump(image_depth_range, f)
 
 def get_depth_range(T, src_pos, camera):
     range_w = np.array([camera.min_w, camera.max_w])
@@ -370,7 +442,9 @@ def get_disparity_range(projection, direction, camera):
 
 def disparity_compute(cameras, images, points3D):
     with open('/tmp/mvsnet_dump.pikle', 'rb') as f:
-        point_shared = pickle.load(f)
+        scores = pickle.load(f)
+    with open('/tmp/mvsnet_depth.pikle', 'rb') as f:
+        image_depth_range = pickle.load(f)
 
     for camera_id, camera in cameras.items():
         pass
@@ -381,7 +455,7 @@ def disparity_compute(cameras, images, points3D):
 
     for image_id, image in images.items():
         camera = cameras[image.camera_id]
-        order_map = sorted(point_shared[image_id].items(), key=lambda x: x[1], reverse=True)
+        order_map = sorted(scores[image_id].items(), key=lambda x: x[1], reverse=True)
         ref_pos = np.squeeze(np.matmul(camera.K_inv[None, None, :, :], grid[:, :, :, None]), axis=-1)
         ref_pos = ref_pos / np.linalg.norm(ref_pos, axis=-1, keepdims=True)
 
@@ -412,13 +486,15 @@ def disparity_compute(cameras, images, points3D):
             err = np.where(depth_range[..., 0:1] > depth_range[..., 1:2], 0., err)
 
             resolution = (camera.max_w - camera.min_w)/camera.width
-            np.linspace()
 
-            disparity_width = np.where(disparity_range[..., 1] > disparity_range[..., 0], disparity_range[..., 1] - disparity_range[..., 0], 0.)
-            depth_width = np.where(depth_range[..., 1] > depth_range[..., 0], depth_range[..., 1] - depth_range[..., 0], 0,)
-            show_3d_suface(disparity_width, block=False)
-            show_3d_suface(depth_width)
-
+            # disparity_width = np.where(disparity_range[..., 1] > disparity_range[..., 0], disparity_range[..., 1] - disparity_range[..., 0], 0.)
+            # depth_width = np.where(depth_range[..., 1] > depth_range[..., 0], depth_range[..., 1] - depth_range[..., 0], 0,)
+            # show_3d_suface(disparity_width, block=False)
+            # show_3d_suface(depth_width)
+            print(i, end=' ')
+            print(np.min(np.where(depth_range[..., 0] > depth_range[..., 1], np.PINF, depth_range[..., 0])), end=' ')
+            print(np.max(np.where(depth_range[..., 0] > depth_range[..., 1], np.NINF, depth_range[..., 1])), end=' ')
+            print(image_depth_range[image_id][int(len(image_depth_range[image_id]) * 0.01)])
 
 if __name__ == '__main__':
     InitLogging()
