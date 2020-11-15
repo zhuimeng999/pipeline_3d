@@ -51,9 +51,10 @@ def mvs_dmvsnet2mvsnet(in_dmvsnet_dir, out_mvsnet_dir, build_id: int = None):
 def mvs_dmvsnet2custom(in_dmvsnet_dir, out_custom_dir, build_id: int = None):
     out_dir = os.path.join(out_custom_dir, 'mvs_result')
     if os.path.islink(out_dir) is False:
-        os.mkdir(out_dir)
-        os.symlink(os.path.join(in_dmvsnet_dir, 'images'), os.path.join(out_custom_dir, 'mvs_result/images'))
-        os.symlink(in_dmvsnet_dir, os.path.join(out_custom_dir, 'mvs_result/depth_mvsnet'))
+        # os.mkdir(out_dir)
+        os.symlink(in_dmvsnet_dir, out_dir)
+        # os.symlink(os.path.join(in_dmvsnet_dir, 'images'), os.path.join(out_custom_dir, 'mvs_result/images'))
+        # os.symlink(in_dmvsnet_dir, os.path.join(out_custom_dir, 'mvs_result/depth_mvsnet'))
 
 
 def mvs_convert_helper(src_alg, target_alg, in_alg_dir, out_alg_dir, build_id: int = None):
